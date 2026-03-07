@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/zhangyanhua/.claude/bin/codeagent-wrapper:*)",
+      "Bash(python:*)",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}

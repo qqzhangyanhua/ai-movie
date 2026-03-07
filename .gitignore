@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+.cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+backend/uploads/photos/*
+backend/uploads/thumbnails/*
+backend/uploads/videos/*
+!backend/uploads/photos/.gitkeep
+!backend/uploads/thumbnails/.gitkeep
+!backend/uploads/videos/.gitkeep
+
+# Logs
+*.log

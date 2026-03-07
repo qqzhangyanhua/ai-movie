@@ -1,0 +1,159 @@
+{
+  "scan_timestamp": "2026-03-07T12:13:07.972Z",
+  "project_name": "AI Movie",
+  "project_root": "/Users/zhangyanhua/AI/ai-movie",
+  "modules": [
+    {
+      "path": "backend",
+      "language": "Python",
+      "entry_points": [
+        "app/main.py"
+      ],
+      "key_files": {
+        "api": [
+          "app/api/router.py",
+          "app/api/auth.py",
+          "app/api/projects.py",
+          "app/api/photos.py",
+          "app/api/scripts.py",
+          "app/api/ai_configs.py",
+          "app/api/video_tasks.py"
+        ],
+        "models": [
+          "app/models/user.py",
+          "app/models/project.py",
+          "app/models/photo.py",
+          "app/models/script.py",
+          "app/models/video_task.py",
+          "app/models/user_ai_config.py"
+        ],
+        "core": [
+          "app/core/config.py",
+          "app/core/database.py",
+          "app/core/deps.py",
+          "app/core/security.py"
+        ],
+        "tasks": [
+          "app/tasks/__init__.py",
+          "app/tasks/video.py"
+        ],
+        "services": [
+          "app/services/llm.py",
+          "app/services/seed_templates.py"
+        ]
+      },
+      "dependencies": "requirements.txt",
+      "test_directory": null,
+      "config_files": [
+        "alembic/env.py"
+      ],
+      "coverage": {
+        "scanned_files": 34,
+        "has_tests": false,
+        "has_entry": true,
+        "has_api_docs": true,
+        "has_data_models": true
+      }
+    },
+    {
+      "path": "frontend",
+      "language": "TypeScript",
+      "entry_points": [
+        "src/main.tsx",
+        "src/App.tsx"
+      ],
+      "key_files": {
+        "pages": [
+          "src/pages/LoginPage.tsx",
+          "src/pages/RegisterPage.tsx",
+          "src/pages/ProjectsPage.tsx",
+          "src/pages/ProjectDetailPage.tsx",
+          "src/pages/SettingsPage.tsx",
+          "src/pages/CommunityPage.tsx"
+        ],
+        "api": [
+          "src/api/auth.ts",
+          "src/api/projects.ts",
+          "src/api/photos.ts",
+          "src/api/scripts.ts",
+          "src/api/ai-configs.ts",
+          "src/api/video-tasks.ts"
+        ],
+        "components": [
+          "src/components/layout/AppLayout.tsx",
+          "src/components/project/PhotosPanel.tsx",
+          "src/components/project/ScriptPanel.tsx",
+          "src/components/project/VideoPanel.tsx",
+          "src/components/project/GenerateScriptDialog.tsx",
+          "src/components/timeline/TimelineEditor.tsx",
+          "src/components/timeline/PhotoPool.tsx",
+          "src/components/timeline/SortableSceneCard.tsx",
+          "src/components/timeline/SceneDetailPanel.tsx"
+        ],
+        "stores": [
+          "src/stores/auth.ts"
+        ],
+        "types": [
+          "src/types/index.ts"
+        ]
+      },
+      "dependencies": "package.json",
+      "test_directory": null,
+      "config_files": [
+        "vite.config.ts",
+        "tsconfig.json"
+      ],
+      "coverage": {
+        "scanned_files": 31,
+        "has_tests": false,
+        "has_entry": true,
+        "has_api_docs": false,
+        "has_data_models": true
+      }
+    }
+  ],
+  "ignored_patterns": [
+    "node_modules/**",
+    ".git/**",
+    ".github/**",
+    "dist/**",
+    "build/**",
+    ".next/**",
+    "__pycache__/**",
+    "*.lock",
+    "*.log",
+    ".venv/**",
+    "venv/**",
+    "env/**",
+    ".DS_Store",
+    "backend/uploads/**"
+  ],
+  "coverage_summary": {
+    "total_modules": 2,
+    "modules_with_docs": 2,
+    "modules_with_tests": 0,
+    "estimated_file_count": 65,
+    "scanned_file_count": 65,
+    "coverage_percentage": 100
+  },
+  "gaps": {
+    "missing_tests": [
+      "backend - 无单元测试和集成测试",
+      "frontend - 无组件测试和 E2E 测试"
+    ],
+    "missing_docs": [],
+    "technical_debt": [
+      "配置管理 - 敏感配置硬编码",
+      "错误处理 - 部分 API 错误信息不详细",
+      "日志 - 缺少结构化日志",
+      "文件存储 - 本地存储不适合生产环境"
+    ]
+  },
+  "next_steps": [
+    "添加 pytest 测试覆盖后端核心业务逻辑",
+    "添加 Vitest 测试覆盖前端关键组件",
+    "将文件存储迁移到对象存储服务",
+    "添加结构化日志和错误追踪（Sentry）",
+    "生产环境配置管理优化"
+  ]
+}
