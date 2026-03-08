@@ -9,7 +9,10 @@
       "mcp__mcp-shrimp-task-manager__process_thought",
       "Bash(alembic revision:*)",
       "Bash(grep file_url\\\\|thumb_url\\\\|result_video_url\\\\|celery_task_id\\\\|retry_count\\\\|started_at:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(printf \\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n:*)",
+      "Bash(/Users/zhangyanhua/AI/ai-movie/frontend/src/lib/utils.ts:*)"
     ]
   }
 }
