@@ -13,4 +13,11 @@ export const addCharacterToProjectSchema = z.object({
   roleName: z.string().optional(),
 });
 
+export const updateCharacterSchema = z.object({
+  name: z.string().min(1, "请输入角色名称").max(50).optional(),
+  personality: z.string().optional(),
+  style: z.string().optional(),
+});
+
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
+export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;

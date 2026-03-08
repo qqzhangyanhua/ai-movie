@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
+import { enqueueTask } from "@/lib/queue";
 import {
   createCharacterSchema,
   addCharacterToProjectSchema,
+  updateCharacterSchema,
 } from "@/lib/validations/character";
 
 export async function createCharacter(data: {
@@ -85,4 +87,57 @@ export async function deleteCharacter(characterId: string) {
     where: { id: characterId, userId: session.user.id },
   });
   revalidatePath("/dashboard/characters");
+}
+
+export async function updateCharacter(
+  characterId: string,
+  data: { name?: string; personality?: string; style?: string }
+) {
+  const session = await requireAuth();
+  const parsed = updateCharacterSchema.safeParse(data);
+  if (!parsed.success) return { error: "输入无效" };
+
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, userId: session.user.id },
+  });
+  if (!character) return { error: "角色不存在" };
+
+  const updateData: { name?: string; personality?: string; style?: string } =
+    {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.personality !== undefined)
+    updateData.personality = parsed.data.personality;
+  if (parsed.data.style !== undefined) updateData.style = parsed.data.style;
+
+  if (Object.keys(updateData).length === 0) return { data: character };
+
+  const updated = await prisma.character.update({
+    where: { id: characterId },
+    data: updateData,
+  });
+
+  revalidatePath("/dashboard/characters");
+  return { data: updated };
+}
+
+export async function generateCharacterViews(characterId: string) {
+  const session = await requireAuth();
+  const character = await prisma.character.findFirst({
+    where: { id: characterId, userId: session.user.id },
+  });
+  if (!character) return { error: "角色不存在" };
+
+  await enqueueTask({
+    taskType: "character:generate",
+    projectId: characterId,
+    userId: session.user.id,
+    data: {
+      characterId,
+      photoUrl: character.photoUrl,
+      characterName: character.name,
+    },
+  });
+
+  revalidatePath("/dashboard/characters");
+  return { success: true };
 }

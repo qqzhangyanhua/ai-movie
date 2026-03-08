@@ -10,6 +10,7 @@ interface CharacterCardProps {
   character: Character;
   selected?: boolean;
   showDelete?: boolean;
+  projectCount?: number;
   onSelect?: () => void;
   onDelete?: () => void;
 }
@@ -18,6 +19,7 @@ export function CharacterCard({
   character,
   selected = false,
   showDelete = false,
+  projectCount,
   onSelect,
   onDelete,
 }: CharacterCardProps) {
@@ -56,6 +58,11 @@ export function CharacterCard({
           {character.style && (
             <Badge variant="outline" className="text-xs">
               {character.style}
+            </Badge>
+          )}
+          {projectCount !== undefined && projectCount > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {projectCount} 项目
             </Badge>
           )}
         </div>
