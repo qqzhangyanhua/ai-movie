@@ -16,7 +16,9 @@ class Photo(Base):
         UUID(as_uuid=True), ForeignKey("projects.id"), index=True, nullable=False
     )
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    thumb_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     storage_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     storage_type: Mapped[str] = mapped_column(String(20), default="local")
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, ForeignKey, Text
+from sqlalchemy import String, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,11 +24,15 @@ class VideoTask(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending / processing / completed / failed
     ai_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     result_video_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    result_video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    celery_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     progress: Mapped[int | None] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project: Mapped["Project"] = relationship(back_populates="video_tasks")  # type: ignore[name-defined]  # noqa: F821

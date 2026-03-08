@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.models.script import Script
 from app.models.user_ai_config import UserAiConfig
 from app.models.video_task import VideoTask
+from app.tasks import celery_app
 from app.schemas.video_task import VideoTaskCreate, VideoTaskResponse
 
 router = APIRouter()
@@ -27,11 +28,14 @@ async def create_video_task(
         raise HTTPException(status_code=404, detail="项目不存在")
 
     script_result = await db.execute(
-        select(Script).where(Script.id == payload.script_id)
+        select(Script).where(
+            Script.id == payload.script_id,
+            Script.project_id == payload.project_id,
+        )
     )
     script = script_result.scalar_one_or_none()
     if not script:
-        raise HTTPException(status_code=404, detail="剧本不存在")
+        raise HTTPException(status_code=404, detail="剧本不存在或不属于该项目")
 
     config_result = await db.execute(
         select(UserAiConfig).where(
@@ -61,7 +65,10 @@ async def create_video_task(
 
     from app.tasks.video import generate_video
 
-    generate_video.delay(str(task.id))
+    celery_task = generate_video.delay(str(task.id))
+    task.celery_task_id = celery_task.id
+    await db.flush()
+    await db.refresh(task)
 
     return task
 
@@ -110,10 +117,13 @@ async def cancel_video_task(
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    if task.status in ("completed", "failed"):
+    if task.status in ("completed", "failed", "cancelled"):
         raise HTTPException(status_code=400, detail="任务已结束")
 
-    task.status = "failed"
+    if task.celery_task_id:
+        celery_app.control.revoke(task.celery_task_id, terminate=True)
+
+    task.status = "cancelled"
     task.error_message = "用户取消"
     return {"status": "cancelled"}
 
@@ -137,11 +147,17 @@ async def retry_video_task(
     task.error_message = None
     task.progress = 0
     task.result_video_path = None
+    task.result_video_url = None
+    task.started_at = None
+    task.celery_task_id = None
+    task.retry_count = (task.retry_count or 0) + 1
     task.completed_at = None
     await db.flush()
-    await db.refresh(task)
 
     from app.tasks.video import generate_video
 
-    generate_video.delay(str(task.id))
+    celery_task = generate_video.delay(str(task.id))
+    task.celery_task_id = celery_task.id
+    await db.flush()
+    await db.refresh(task)
     return task

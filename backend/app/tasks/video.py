@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import subprocess
 import tempfile
@@ -12,6 +13,7 @@ from app.core.config import settings
 from app.models.photo import Photo
 from app.models.script import Script
 from app.models.video_task import VideoTask
+from app.services.storage import get_storage_provider
 from app.tasks import celery_app
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ def generate_video(self, task_id: str) -> None:  # type: ignore[no-untyped-def]
 
         task.status = "processing"
         task.progress = 0
+        task.started_at = datetime.now(timezone.utc)
         session.commit()
 
         script = session.execute(
@@ -98,7 +101,10 @@ def generate_video(self, task_id: str) -> None:  # type: ignore[no-untyped-def]
 
         task.status = "completed"
         task.progress = 100
-        task.result_video_path = f"videos/{output_filename}"
+        video_key = f"videos/{output_filename}"
+        video_url = _upload_video_to_storage(output_path, video_key)
+        task.result_video_path = video_key
+        task.result_video_url = video_url
         task.completed_at = datetime.now(timezone.utc)
         session.commit()
 
@@ -154,6 +160,19 @@ def _concat_clips(clips: list[Path], output_path: Path) -> None:
         subprocess.run(cmd, check=True, capture_output=True, timeout=600)
     finally:
         Path(filelist).unlink(missing_ok=True)
+
+
+def _upload_video_to_storage(local_path: Path, storage_key: str) -> str:
+    storage = get_storage_provider(
+        provider=settings.STORAGE_PROVIDER,
+        upload_dir=settings.UPLOAD_DIR,
+        s3_bucket=settings.S3_BUCKET,
+        s3_region=settings.S3_REGION,
+        s3_access_key=settings.S3_ACCESS_KEY,
+        s3_secret_key=settings.S3_SECRET_KEY,
+    )
+    file_data = local_path.read_bytes()
+    return asyncio.run(storage.upload(file_data, storage_key))
 
 
 def _is_retryable(exc: Exception) -> bool:

@@ -97,17 +97,19 @@ async def upload_photos(
         img = Image.open(BytesIO(content))
         width, height = img.size
 
-        await storage.upload(content, photo_key)
+        file_url = await storage.upload(content, photo_key)
 
         img.thumbnail(THUMBNAIL_SIZE)
         thumb_buffer = BytesIO()
         img.save(thumb_buffer, format=img.format or "JPEG")
-        await storage.upload(thumb_buffer.getvalue(), thumb_key)
+        thumb_url = await storage.upload(thumb_buffer.getvalue(), thumb_key)
 
         photo = Photo(
             project_id=project_id,
             file_path=photo_key,
+            file_url=file_url,
             thumbnail_path=thumb_key,
+            thumb_url=thumb_url,
             storage_key=photo_key,
             storage_type=settings.STORAGE_PROVIDER,
             file_size=file_size,

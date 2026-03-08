@@ -88,7 +88,7 @@ export function PhotosPanel({ projectId }: PhotosPanelProps) {
           {photos.map((photo) => (
             <div key={photo.id} className="group relative overflow-hidden rounded-2xl border border-white/10 shadow-lg">
               <img
-                src={`/uploads/${photo.thumbnail_path ?? photo.file_path}`}
+                src={photo.thumb_url || photo.file_url || `/uploads/${photo.thumbnail_path ?? photo.file_path}`}
                 alt=""
                 className="aspect-square w-full object-cover"
                 loading="lazy"

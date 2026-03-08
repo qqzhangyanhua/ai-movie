@@ -8,7 +8,9 @@ class PhotoResponse(BaseModel):
     id: UUID
     project_id: UUID
     file_path: str
+    file_url: str | None = None
     thumbnail_path: str | None
+    thumb_url: str | None = None
     file_size: int
     width: int
     height: int

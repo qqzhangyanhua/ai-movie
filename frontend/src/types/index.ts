@@ -20,7 +20,9 @@ export interface Photo {
   id: string
   project_id: string
   file_path: string
+  file_url: string | null
   thumbnail_path: string | null
+  thumb_url: string | null
   file_size: number
   width: number
   height: number
@@ -65,12 +67,16 @@ export interface VideoTask {
   id: string
   project_id: string
   script_id: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
   ai_config: Record<string, unknown> | null
   result_video_path: string | null
+  result_video_url: string | null
+  celery_task_id: string | null
+  retry_count: number
   error_message: string | null
   progress: number
   created_at: string
+  started_at: string | null
   completed_at: string | null
 }
 
@@ -89,6 +95,7 @@ export interface BgmTrack {
   id: string
   name: string
   file_path: string
+  file_url: string | null
   duration: number
   category: string | null
   is_system: boolean

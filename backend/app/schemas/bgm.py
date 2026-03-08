@@ -14,6 +14,7 @@ class BgmResponse(BaseModel):
     id: UUID
     name: str
     file_path: str
+    file_url: str | None = None
     duration: float
     category: str | None
     is_system: bool

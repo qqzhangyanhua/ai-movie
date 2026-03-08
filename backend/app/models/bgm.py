@@ -17,6 +17,7 @@ class BgmTrack(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     duration: Mapped[float] = mapped_column(Float, default=0.0)
     category: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)

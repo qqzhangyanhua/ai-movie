@@ -10,6 +10,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { toast } from '@/components/ui/Toast'
 import { SkeletonListItem } from '@/components/ui/Skeleton'
 import { ScenePreview } from './ScenePreview'
+import { VideoPlayer } from './VideoPlayer'
 import type { VideoTask } from '@/types'
 
 interface VideoPanelProps {
@@ -24,6 +25,7 @@ const STATUS_CONFIG: Record<
   processing: { label: '生成中', icon: Loader2, className: 'text-blue-500 animate-spin' },
   completed: { label: '已完成', icon: CheckCircle2, className: 'text-green-500' },
   failed: { label: '失败', icon: AlertCircle, className: 'text-destructive' },
+  cancelled: { label: '已取消', icon: XCircle, className: 'text-gray-500' },
 }
 
 export function VideoPanel({ projectId }: VideoPanelProps) {
@@ -59,7 +61,7 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
     queryFn: async () => {
       if (!pollingTaskId) return null
       const task = await getVideoTask(pollingTaskId)
-      if (task.status === 'completed' || task.status === 'failed') {
+      if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
         setPollingTaskId(null)
         queryClient.invalidateQueries({ queryKey: ['video-tasks', projectId] })
       }
@@ -228,6 +230,13 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
                     )}
                   </div>
                 </div>
+                {task.status === 'completed' && (task.result_video_url || task.result_video_path) && (
+                  <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
+                    <VideoPlayer
+                      videoUrl={task.result_video_url || `/uploads/${task.result_video_path}`}
+                    />
+                  </div>
+                )}
                 {task.status === 'processing' && task.progress != null && (
                   <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                     <div

@@ -6,7 +6,10 @@
       "Bash(pnpm add:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "mcp__mcp-shrimp-task-manager__process_thought"
+      "mcp__mcp-shrimp-task-manager__process_thought",
+      "Bash(alembic revision:*)",
+      "Bash(grep file_url\\\\|thumb_url\\\\|result_video_url\\\\|celery_task_id\\\\|retry_count\\\\|started_at:*)",
+      "Bash(git diff:*)"
     ]
   }
 }

@@ -18,9 +18,13 @@ class VideoTaskResponse(BaseModel):
     status: str
     ai_config: dict[str, Any] | None
     result_video_path: str | None
+    result_video_url: str | None = None
+    celery_task_id: str | None = None
+    retry_count: int = 0
     error_message: str | None
     progress: int | None
     created_at: datetime
+    started_at: datetime | None = None
     completed_at: datetime | None
 
     model_config = {"from_attributes": True}
