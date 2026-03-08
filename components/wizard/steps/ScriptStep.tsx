@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScriptTemplateGrid } from "@/components/script/ScriptTemplateGrid";
 import { ScriptEditor } from "@/components/script/ScriptEditor";
 import { CustomScriptForm } from "@/components/script/CustomScriptForm";
+import { ScriptGenerator } from "@/components/script/ScriptGenerator";
 import type { ScriptScene } from "@/lib/data/script-templates";
 
 interface ScriptStepProps {
@@ -53,14 +54,21 @@ export function ScriptStep({
   return (
     <div className="space-y-6">
       <Tabs defaultValue="templates" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="templates">选择模板</TabsTrigger>
+          <TabsTrigger value="ai">AI 生成</TabsTrigger>
           <TabsTrigger value="custom">自定义剧本</TabsTrigger>
         </TabsList>
         <TabsContent value="templates" className="mt-4">
           <ScriptTemplateGrid
             projectId={projectId}
             onApplied={() => router.refresh()}
+          />
+        </TabsContent>
+        <TabsContent value="ai" className="mt-4">
+          <ScriptGenerator
+            projectId={projectId}
+            onGenerated={() => router.refresh()}
           />
         </TabsContent>
         <TabsContent value="custom" className="mt-4">
