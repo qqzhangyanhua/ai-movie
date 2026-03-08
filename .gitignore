@@ -54,3 +54,5 @@ backend/uploads/videos/*
 
 # Logs
 *.log
+
+/lib/generated/prisma
