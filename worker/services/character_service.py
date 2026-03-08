@@ -1,5 +1,6 @@
 """Character three-view generation service using DALL-E 3."""
 
+import json
 import logging
 from openai import OpenAI
 
@@ -73,3 +74,33 @@ def generate_character_views(photo_url: str, name: str) -> dict:
         photo_url[:50] + "..." if len(photo_url) > 50 else photo_url,
     )
     return result
+
+
+def generate_character_embedding(
+    name: str, personality: str, style: str
+) -> bytes | None:
+    """Generate embedding vector for a character using OpenAI Embeddings API.
+
+    Args:
+        name: Character name.
+        personality: Character personality description.
+        style: Character style description.
+
+    Returns:
+        Embedding vector as bytes (JSON-encoded list of floats), or None on failure.
+    """
+    if not OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY not set, skipping character embedding generation")
+        return None
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        text = f"角色: {name}, 性格: {personality}, 风格: {style}"
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text,
+        )
+        vector = response.data[0].embedding
+        return json.dumps(vector).encode()
+    except Exception as e:
+        logger.error("Character embedding generation failed for %s: %s", name, e)
+        return None

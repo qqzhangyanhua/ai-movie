@@ -13,8 +13,9 @@ from config import DATABASE_URL, REDIS_URL
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
-from services.character_service import generate_character_views
+from services.character_service import generate_character_embedding, generate_character_views
 from services.voice_service import generate_scene_voiceovers
+from services.music_service import generate_project_bgm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -131,6 +132,10 @@ def handle_character_generate(r: redis.Redis, conn, payload: dict) -> None:
 
     views = generate_character_views(photo_url, character_name)
 
+    personality = data.get("personality", "") or ""
+    style = data.get("style", "") or ""
+    embedding_bytes = generate_character_embedding(character_name, personality, style)
+
     if conn:
         try:
             cur = conn.cursor()
@@ -168,6 +173,33 @@ def handle_character_generate(r: redis.Redis, conn, payload: dict) -> None:
                         photo_url,
                     ),
                 )
+            if embedding_bytes:
+                if character_id:
+                    cur.execute(
+                        """
+                        UPDATE "Character"
+                        SET "embedding" = %s
+                        WHERE id = %s
+                          AND id IN (SELECT "characterId" FROM "ProjectCharacter" WHERE "projectId" = %s)
+                        """,
+                        (psycopg2.Binary(embedding_bytes), character_id, project_id),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        UPDATE "Character" c
+                        SET "embedding" = %s
+                        FROM "ProjectCharacter" pc
+                        WHERE c.id = pc."characterId" AND pc."projectId" = %s
+                          AND (c.name = %s OR c."photoUrl" = %s)
+                        """,
+                        (
+                            psycopg2.Binary(embedding_bytes),
+                            project_id,
+                            character_name,
+                            photo_url,
+                        ),
+                    )
             conn.commit()
             cur.close()
         except Exception as e:
@@ -267,6 +299,36 @@ def handle_voice_generate(r: redis.Redis, conn, payload: dict) -> None:
     publish_progress(r, project_id, "completed", {"voiceoverUrl": voiceover_url, "scenes": results})
 
 
+def handle_music_generate(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle music:generate task. Generates BGM and updates Video.bgmUrl."""
+    project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    scenes = data.get("scenes", [])
+    total_duration = data.get("totalDuration", 30)
+
+    publish_progress(r, project_id, "processing", {"step": "generating_bgm"})
+
+    bgm_url = generate_project_bgm(scenes, total_duration)
+
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE "Video" SET "bgmUrl" = %s
+                WHERE id = (SELECT id FROM "Video" WHERE "projectId" = %s ORDER BY "createdAt" DESC LIMIT 1)
+                """,
+                (bgm_url, project_id),
+            )
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            logger.error("DB update failed: %s", e)
+            conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"bgmUrl": bgm_url})
+
+
 HANDLERS = {
     "script:generate": handle_script_generate,
     "video:compose": handle_video_compose,
@@ -274,6 +336,7 @@ HANDLERS = {
     "video:clip": handle_video_clip,
     "storyboard:preview": handle_storyboard_preview,
     "voice:generate": handle_voice_generate,
+    "music:generate": handle_music_generate,
 }
 
 
