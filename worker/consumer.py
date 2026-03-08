@@ -13,6 +13,7 @@ from config import DATABASE_URL, REDIS_URL
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
+from utils.ffmpeg_compose import compose_video
 from services.character_service import generate_character_embedding, generate_character_views
 from services.voice_service import generate_scene_voiceovers
 from services.music_service import generate_project_bgm
@@ -98,20 +99,53 @@ def handle_script_generate(r: redis.Redis, conn, payload: dict) -> None:
 
 
 def handle_video_compose(r: redis.Redis, conn, payload: dict) -> None:
-    """Handle video:compose task. Stub simulates video composition."""
+    """Handle video:compose task. Runs FFmpeg pipeline with audio mixing."""
     project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+
+    publish_progress(r, project_id, "processing", {"step": "preparing"})
+
+    clips = data.get("clips", [])
+    bgm_url = data.get("bgmUrl")
+    voiceover_url = data.get("voiceoverUrl")
+    subtitle_url = data.get("subtitleUrl")
+
+    if conn and not bgm_url:
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT "bgmUrl", "voiceoverUrl", "subtitleUrl"
+                FROM "Video" WHERE "projectId" = %s
+                ORDER BY "createdAt" DESC LIMIT 1
+                """,
+                (project_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                bgm_url = bgm_url or row[0]
+                voiceover_url = voiceover_url or row[1]
+                subtitle_url = subtitle_url or row[2]
+            cur.close()
+        except Exception as e:
+            logger.warning("Failed to fetch audio URLs from DB: %s", e)
+
     publish_progress(r, project_id, "processing", {"step": "composing"})
-    time.sleep(0.5)
-    publish_progress(r, project_id, "completed", {"videoUrl": "/uploads/mock-video.mp4"})
+
+    output_path = f"/tmp/video_{project_id}_{int(time.time())}.mp4"
+    video_path = compose_video(clips, bgm_url, voiceover_url, subtitle_url, output_path)
+
+    publish_progress(r, project_id, "completed", {"videoUrl": video_path})
+
     if conn:
         try:
             cur = conn.cursor()
             cur.execute(
                 """
-                UPDATE "Video" SET status = 'COMPLETED', "videoUrl" = '/uploads/mock-video.mp4', progress = 100
+                UPDATE "Video" SET status = 'COMPLETED', "videoUrl" = %s, progress = 100
                 WHERE id = (SELECT id FROM "Video" WHERE "projectId" = %s ORDER BY "createdAt" DESC LIMIT 1)
                 """,
-                (project_id,),
+                (video_path, project_id),
             )
             conn.commit()
             cur.close()
