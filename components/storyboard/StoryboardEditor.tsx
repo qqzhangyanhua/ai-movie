@@ -92,26 +92,37 @@ export function StoryboardEditor({
         <DialogHeader>
           <DialogTitle>编辑分镜 - 场景 {storyboard.sceneNumber}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="sb-desc">场景描述</Label>
-            <Textarea
-              id="sb-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="描述该场景的画面内容"
-              className="min-h-[80px]"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sb-action">动作描述</Label>
-            <Textarea
-              id="sb-action"
-              value={action}
-              onChange={(e) => setAction(e.target.value)}
-              placeholder="描述角色动作"
-              className="min-h-[60px]"
-            />
+        <div className="space-y-6 py-4">
+          {storyboard.imageUrl && (
+            <div className="rounded-lg overflow-hidden bg-muted">
+              <img
+                src={storyboard.imageUrl}
+                alt={`场景 ${storyboard.sceneNumber} 预览`}
+                className="w-full h-32 object-cover"
+              />
+            </div>
+          )}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="sb-desc">场景描述</Label>
+              <Textarea
+                id="sb-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="描述该场景的画面内容"
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sb-action">动作描述</Label>
+              <Textarea
+                id="sb-action"
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+                placeholder="描述角色动作"
+                className="min-h-[60px]"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
