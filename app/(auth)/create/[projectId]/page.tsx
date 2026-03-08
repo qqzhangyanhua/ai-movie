@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { CharacterStep } from "@/components/wizard/steps/CharacterStep";
 import { ScriptStep } from "@/components/wizard/steps/ScriptStep";
+import { StoryboardStep } from "@/components/wizard/steps/StoryboardStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
 
 type PageProps = {
@@ -27,20 +28,30 @@ export default async function CreateProjectWorkbenchPage({
     notFound();
   }
 
-  const [allCharacters, projectCharacters, script] = await Promise.all([
-    prisma.character.findMany({
-      where: { userId: session.user.id },
-    }),
-    prisma.projectCharacter.findMany({
-      where: { projectId },
-      select: { characterId: true },
-    }),
-    prisma.script.findUnique({
-      where: { projectId },
-    }),
-  ]);
+  const [allCharacters, projectCharacters, script, storyboards] =
+    await Promise.all([
+      prisma.character.findMany({
+        where: { userId: session.user.id },
+      }),
+      prisma.projectCharacter.findMany({
+        where: { projectId },
+        include: { character: { select: { id: true, name: true } } },
+      }),
+      prisma.script.findUnique({
+        where: { projectId },
+      }),
+      prisma.storyboard.findMany({
+        where: { projectId },
+        orderBy: { sceneNumber: "asc" },
+        include: { videoClip: true },
+      }),
+    ]);
 
   const selectedCharacterIds = projectCharacters.map((pc) => pc.characterId);
+  const projectCharactersWithNames = projectCharacters.map((pc) => ({
+    id: pc.character.id,
+    name: pc.character.name,
+  }));
 
   const validSteps: StepKey[] = [
     "characters",
@@ -66,7 +77,12 @@ export default async function CreateProjectWorkbenchPage({
       <ScriptStep projectId={projectId} script={script} />
     ),
     storyboard: (
-      <p className="text-muted-foreground">分镜编辑（待实现）</p>
+      <StoryboardStep
+        projectId={projectId}
+        storyboards={storyboards}
+        projectCharacters={projectCharactersWithNames}
+        hasScript={!!script}
+      />
     ),
     generate: (
       <p className="text-muted-foreground">视频生成（待实现）</p>
