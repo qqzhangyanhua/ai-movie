@@ -6,6 +6,7 @@ import { CharacterStep } from "@/components/wizard/steps/CharacterStep";
 import { ScriptStep } from "@/components/wizard/steps/ScriptStep";
 import { StoryboardStep } from "@/components/wizard/steps/StoryboardStep";
 import { GenerateStep } from "@/components/wizard/steps/GenerateStep";
+import { ResultStep } from "@/components/wizard/steps/ResultStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
 
 type PageProps = {
@@ -99,7 +100,16 @@ export default async function CreateProjectWorkbenchPage({
       />
     ),
     result: (
-      <p className="text-muted-foreground">结果预览（待实现）</p>
+      <ResultStep
+        projectId={projectId}
+        videoId={video?.id ?? null}
+        videoUrl={video?.videoUrl ?? null}
+        posterUrl={video?.posterUrl ?? null}
+        duration={video?.duration ?? null}
+        resolution={video?.resolution ?? null}
+        projectTitle={project.title}
+        createdAt={project.createdAt}
+      />
     ),
   };
 
