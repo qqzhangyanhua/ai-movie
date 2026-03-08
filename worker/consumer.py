@@ -13,6 +13,7 @@ from config import DATABASE_URL, REDIS_URL
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
+from services.poster_service import generate_poster
 from utils.ffmpeg_compose import compose_video
 from services.character_service import generate_character_embedding, generate_character_views
 from services.voice_service import generate_scene_voiceovers
@@ -152,6 +153,117 @@ def handle_video_compose(r: redis.Redis, conn, payload: dict) -> None:
         except Exception as e:
             logger.error("DB update failed: %s", e)
             conn.rollback()
+
+    # Auto-generate poster after video compose
+    title = data.get("title", "")
+    description = data.get("description", "")
+    key_scene = data.get("keyScene") or data.get("key_scene", "")
+    if conn:
+        try:
+            cur = conn.cursor()
+            if not title or not description:
+                cur.execute(
+                    """
+                    SELECT p.title, p.description FROM "Project" p WHERE p.id = %s
+                    """,
+                    (project_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    title = title or row[0] or ""
+                    description = description or (row[1] or "")
+            if not key_scene:
+                cur.execute(
+                    """
+                    SELECT s.description FROM "Storyboard" s
+                    WHERE s."projectId" = %s ORDER BY s."sceneNumber" ASC LIMIT 1
+                    """,
+                    (project_id,),
+                )
+                sb_row = cur.fetchone()
+                if sb_row:
+                    key_scene = sb_row[0] or ""
+            cur.close()
+        except Exception as e:
+            logger.warning("Failed to fetch project/storyboard for poster: %s", e)
+
+    if title:
+        poster_url = generate_poster(title, description or "", key_scene=key_scene)
+        if poster_url and conn:
+            try:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    UPDATE "Video" SET "posterUrl" = %s
+                    WHERE id = (SELECT id FROM "Video" WHERE "projectId" = %s ORDER BY "createdAt" DESC LIMIT 1)
+                    """,
+                    (poster_url, project_id),
+                )
+                conn.commit()
+                cur.close()
+            except Exception as e:
+                logger.error("Failed to update posterUrl: %s", e)
+                conn.rollback()
+
+
+def handle_poster_generate(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle poster:generate task. Generates poster via DALL-E and updates Video.posterUrl."""
+    project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    title = data.get("title", "")
+    description = data.get("description", "")
+    style = data.get("style", "")
+    key_scene = data.get("keyScene") or data.get("key_scene", "")
+
+    publish_progress(r, project_id, "processing", {"step": "generating_poster"})
+
+    if conn and (not title or not description):
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT p.title, p.description FROM "Project" p WHERE p.id = %s
+                """,
+                (project_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                title = title or row[0] or ""
+                description = description or (row[1] or "")
+            if not key_scene:
+                cur.execute(
+                    """
+                    SELECT s.description FROM "Storyboard" s
+                    WHERE s."projectId" = %s ORDER BY s."sceneNumber" ASC LIMIT 1
+                    """,
+                    (project_id,),
+                )
+                sb_row = cur.fetchone()
+                if sb_row:
+                    key_scene = sb_row[0] or ""
+            cur.close()
+        except Exception as e:
+            logger.warning("Failed to fetch project/storyboard: %s", e)
+
+    poster_url = generate_poster(title, description, style=style, key_scene=key_scene)
+
+    if conn and poster_url:
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE "Video" SET "posterUrl" = %s
+                WHERE id = (SELECT id FROM "Video" WHERE "projectId" = %s ORDER BY "createdAt" DESC LIMIT 1)
+                """,
+                (poster_url, project_id),
+            )
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            logger.error("DB update failed: %s", e)
+            conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"posterUrl": poster_url})
 
 
 def handle_character_generate(r: redis.Redis, conn, payload: dict) -> None:
@@ -371,6 +483,7 @@ HANDLERS = {
     "storyboard:preview": handle_storyboard_preview,
     "voice:generate": handle_voice_generate,
     "music:generate": handle_music_generate,
+    "poster:generate": handle_poster_generate,
 }
 
 

@@ -6,6 +6,7 @@ export type TaskType =
   | "video:clip"
   | "voice:generate"
   | "music:generate"
+  | "poster:generate"
   | "video:compose";
 
 export interface TaskPayload {
