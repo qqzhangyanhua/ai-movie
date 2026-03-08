@@ -2,25 +2,25 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   updateScriptScene,
   deleteScript,
+  addScene,
+  deleteScene,
+  reorderScenes,
 } from "@/lib/actions/script";
+import { SceneEditor } from "./SceneEditor";
 import type { ScriptScene } from "@/lib/data/script-templates";
-
-const CAMERA_OPTIONS = ["远景", "中景", "特写"] as const;
 
 interface ScriptEditorProps {
   projectId: string;
@@ -37,16 +37,26 @@ export function ScriptEditor({
   const [localScenes, setLocalScenes] = useState<ScriptScene[]>(scenes);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(
+    null
+  );
   const scenesRef = useRef(localScenes);
   useEffect(() => {
     scenesRef.current = localScenes;
   }, [localScenes]);
 
+  useEffect(() => {
+    setLocalScenes(scenes);
+  }, [scenes]);
+
   const handleSceneChange = useCallback(
     (index: number, field: keyof ScriptScene, value: string | number) => {
       setLocalScenes((prev) => {
         const next = [...prev];
-        next[index] = { ...next[index], [field]: value };
+        const scene = next[index];
+        if (!scene) return prev;
+        next[index] = { ...scene, [field]: value };
         return next;
       });
     },
@@ -65,6 +75,40 @@ export function ScriptEditor({
       dialogue: scene.dialogue,
     });
     setSaving(false);
+    router.refresh();
+  }
+
+  async function handleCameraTypeChange(
+    index: number,
+    cameraType: ScriptScene["cameraType"]
+  ) {
+    handleSceneChange(index, "cameraType", cameraType);
+    await updateScriptScene(projectId, index, { cameraType });
+    router.refresh();
+  }
+
+  async function handleAddScene() {
+    setAdding(true);
+    await addScene(projectId);
+    setAdding(false);
+    router.refresh();
+  }
+
+  async function handleDeleteScene(index: number) {
+    setDeleteConfirmIndex(null);
+    await deleteScene(projectId, index);
+    router.refresh();
+  }
+
+  async function handleMoveUp(index: number) {
+    if (index <= 0) return;
+    await reorderScenes(projectId, index, index - 1);
+    router.refresh();
+  }
+
+  async function handleMoveDown(index: number) {
+    if (index >= localScenes.length - 1) return;
+    await reorderScenes(projectId, index, index + 1);
     router.refresh();
   }
 
@@ -93,84 +137,70 @@ export function ScriptEditor({
 
       <div className="space-y-6">
         {localScenes.map((scene, index) => (
-          <div
-            key={scene.sceneNumber}
-            className="rounded-lg border p-4 space-y-4"
-          >
-            <h4 className="font-medium">场景 {scene.sceneNumber}</h4>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor={`desc-${index}`}>场景描述</Label>
-                <Textarea
-                  id={`desc-${index}`}
-                  value={scene.description}
-                  onChange={(e) =>
-                    handleSceneChange(index, "description", e.target.value)
-                  }
-                  onBlur={() => handleSaveScene(index)}
-                  placeholder="描述该场景的画面内容"
-                  className="min-h-[80px]"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor={`action-${index}`}>动作描述</Label>
-                <Textarea
-                  id={`action-${index}`}
-                  value={scene.action}
-                  onChange={(e) =>
-                    handleSceneChange(index, "action", e.target.value)
-                  }
-                  onBlur={() => handleSaveScene(index)}
-                  placeholder="描述角色动作"
-                  className="min-h-[60px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>镜头类型</Label>
-                <Select
-                  value={scene.cameraType}
-                  onValueChange={(v) => {
-                    const newCameraType = v as ScriptScene["cameraType"];
-                    handleSceneChange(index, "cameraType", newCameraType);
-                    updateScriptScene(projectId, index, {
-                      cameraType: newCameraType,
-                    }).then(() => router.refresh());
-                  }}
-                >
-                  <SelectTrigger id={`camera-${index}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CAMERA_OPTIONS.map((opt) => (
-                      <SelectItem key={opt} value={opt}>
-                        {opt}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`duration-${index}`}>时长（秒）</Label>
-                <Input
-                  id={`duration-${index}`}
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={scene.duration}
-                  onChange={(e) =>
-                    handleSceneChange(
-                      index,
-                      "duration",
-                      parseInt(e.target.value, 10) || 5
-                    )
-                  }
-                  onBlur={() => handleSaveScene(index)}
-                />
-              </div>
-            </div>
-          </div>
+          <SceneEditor
+            key={`${scene.sceneNumber}-${index}`}
+            scene={scene}
+            index={index}
+            canMoveUp={index > 0}
+            canMoveDown={index < localScenes.length - 1}
+            onSceneChange={(field, value) =>
+              handleSceneChange(index, field, value)
+            }
+            onSave={() => handleSaveScene(index)}
+            onDelete={() => setDeleteConfirmIndex(index)}
+            onMoveUp={() => handleMoveUp(index)}
+            onMoveDown={() => handleMoveDown(index)}
+            onCameraTypeChange={(cameraType) =>
+              handleCameraTypeChange(index, cameraType)
+            }
+          />
         ))}
       </div>
+
+      <Button
+        variant="outline"
+        className="w-full"
+        disabled={adding}
+        onClick={handleAddScene}
+      >
+        <Plus className="mr-2 size-4" />
+        添加场景
+      </Button>
+
+      <Dialog
+        open={deleteConfirmIndex !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmIndex(null)}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除场景{" "}
+              {deleteConfirmIndex !== null
+                ? localScenes[deleteConfirmIndex]?.sceneNumber
+                : ""}{" "}
+              吗？删除后其余场景将自动重新编号。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmIndex(null)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                deleteConfirmIndex !== null &&
+                handleDeleteScene(deleteConfirmIndex)
+              }
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

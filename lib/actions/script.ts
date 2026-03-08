@@ -105,6 +105,111 @@ export async function updateScriptScene(
   return { success: true };
 }
 
+export async function addScene(projectId: string) {
+  const session = await requireAuth();
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    include: { script: true },
+  });
+  if (!project) return { error: "项目不存在" };
+  if (!project.script) return { error: "剧本不存在" };
+
+  const content = project.script.content as ScriptScene[];
+  if (!Array.isArray(content)) return { error: "剧本内容无效" };
+
+  const newSceneNumber = content.length + 1;
+  const newScene: ScriptScene = {
+    sceneNumber: newSceneNumber,
+    description: "",
+    action: "",
+    cameraType: "中景",
+    duration: 5,
+    dialogue: "",
+  };
+
+  const updatedScenes = [...content, newScene];
+
+  await prisma.script.update({
+    where: { projectId },
+    data: { content: updatedScenes as unknown as object },
+  });
+
+  revalidatePath(`/create/${projectId}`);
+  return { success: true };
+}
+
+export async function deleteScene(projectId: string, sceneIndex: number) {
+  const session = await requireAuth();
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    include: { script: true },
+  });
+  if (!project) return { error: "项目不存在" };
+  if (!project.script) return { error: "剧本不存在" };
+
+  const content = project.script.content as ScriptScene[];
+  if (!Array.isArray(content) || sceneIndex < 0 || sceneIndex >= content.length) {
+    return { error: "场景索引无效" };
+  }
+
+  const updatedScenes = content
+    .filter((_, i) => i !== sceneIndex)
+    .map((s, i) => ({ ...s, sceneNumber: i + 1 }));
+
+  await prisma.script.update({
+    where: { projectId },
+    data: { content: updatedScenes as unknown as object },
+  });
+
+  revalidatePath(`/create/${projectId}`);
+  return { success: true };
+}
+
+export async function reorderScenes(
+  projectId: string,
+  fromIndex: number,
+  toIndex: number
+) {
+  const session = await requireAuth();
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    include: { script: true },
+  });
+  if (!project) return { error: "项目不存在" };
+  if (!project.script) return { error: "剧本不存在" };
+
+  const content = project.script.content as ScriptScene[];
+  if (!Array.isArray(content)) return { error: "剧本内容无效" };
+  if (
+    fromIndex < 0 ||
+    fromIndex >= content.length ||
+    toIndex < 0 ||
+    toIndex >= content.length
+  ) {
+    return { error: "场景索引无效" };
+  }
+
+  const updatedScenes = [...content];
+  const [removed] = updatedScenes.splice(fromIndex, 1);
+  updatedScenes.splice(toIndex, 0, removed);
+
+  const renumbered = updatedScenes.map((s, i) => ({
+    ...s,
+    sceneNumber: i + 1,
+  }));
+
+  await prisma.script.update({
+    where: { projectId },
+    data: { content: renumbered as unknown as object },
+  });
+
+  revalidatePath(`/create/${projectId}`);
+  return { success: true };
+}
+
 export async function deleteScript(projectId: string) {
   const session = await requireAuth();
 
