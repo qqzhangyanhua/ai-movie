@@ -1,11 +1,13 @@
 {
-  "scan_timestamp": "2026-03-07T12:13:07.972Z",
+  "scan_timestamp": "2025-03-29T14:23:45Z",
   "project_name": "AI Movie",
   "project_root": "/Users/zhangyanhua/AI/ai-movie",
+  "project_summary": "AI 驱动的视频制作平台。用户上传照片，通过 AI 生成脚本，系统自动将照片组合成带转场效果的视频。",
   "modules": [
     {
       "path": "backend",
       "language": "Python",
+      "role": "FastAPI 后端服务，提供 REST API、数据持久化、异步任务调度",
       "entry_points": [
         "app/main.py"
       ],
@@ -17,7 +19,8 @@
           "app/api/photos.py",
           "app/api/scripts.py",
           "app/api/ai_configs.py",
-          "app/api/video_tasks.py"
+          "app/api/video_tasks.py",
+          "app/api/bgm.py"
         ],
         "models": [
           "app/models/user.py",
@@ -25,7 +28,8 @@
           "app/models/photo.py",
           "app/models/script.py",
           "app/models/video_task.py",
-          "app/models/user_ai_config.py"
+          "app/models/user_ai_config.py",
+          "app/models/bgm.py"
         ],
         "core": [
           "app/core/config.py",
@@ -39,37 +43,54 @@
         ],
         "services": [
           "app/services/llm.py",
-          "app/services/seed_templates.py"
+          "app/services/seed_templates.py",
+          "app/services/storage.py"
+        ],
+        "migrations": [
+          "alembic/versions/001_storage_migration.py",
+          "alembic/versions/e8bf1bffa176_add_bgm_tracks_table.py"
         ]
       },
       "dependencies": "requirements.txt",
-      "test_directory": null,
+      "test_directory": "tests",
+      "test_files": [
+        "tests/conftest.py",
+        "tests/test_auth.py"
+      ],
       "config_files": [
-        "alembic/env.py"
+        "alembic/env.py",
+        "alembic.ini",
+        "Dockerfile"
       ],
       "coverage": {
-        "scanned_files": 34,
-        "has_tests": false,
+        "scanned_files": 38,
+        "has_tests": true,
         "has_entry": true,
         "has_api_docs": true,
-        "has_data_models": true
+        "has_data_models": true,
+        "api_endpoints": 7,
+        "models_count": 7,
+        "test_coverage": "low"
       }
     },
     {
       "path": "frontend",
       "language": "TypeScript",
+      "role": "React 前端应用，用户界面、状态管理、API 调用",
       "entry_points": [
         "src/main.tsx",
         "src/App.tsx"
       ],
       "key_files": {
         "pages": [
+          "src/pages/LandingPage.tsx",
           "src/pages/LoginPage.tsx",
           "src/pages/RegisterPage.tsx",
           "src/pages/ProjectsPage.tsx",
           "src/pages/ProjectDetailPage.tsx",
           "src/pages/SettingsPage.tsx",
-          "src/pages/CommunityPage.tsx"
+          "src/pages/CommunityPage.tsx",
+          "src/pages/ProfilePage.tsx"
         ],
         "api": [
           "src/api/auth.ts",
@@ -77,41 +98,83 @@
           "src/api/photos.ts",
           "src/api/scripts.ts",
           "src/api/ai-configs.ts",
-          "src/api/video-tasks.ts"
+          "src/api/video-tasks.ts",
+          "src/api/bgm.ts"
         ],
         "components": [
           "src/components/layout/AppLayout.tsx",
+          "src/components/landing/LandingNav.tsx",
+          "src/components/landing/Hero.tsx",
+          "src/components/landing/Features.tsx",
+          "src/components/landing/HowItWorks.tsx",
+          "src/components/landing/Footer.tsx",
+          "src/components/auth/AuthModal.tsx",
           "src/components/project/PhotosPanel.tsx",
           "src/components/project/ScriptPanel.tsx",
           "src/components/project/VideoPanel.tsx",
           "src/components/project/GenerateScriptDialog.tsx",
+          "src/components/project/BgmPicker.tsx",
+          "src/components/project/ScenePreview.tsx",
           "src/components/timeline/TimelineEditor.tsx",
           "src/components/timeline/PhotoPool.tsx",
           "src/components/timeline/SortableSceneCard.tsx",
-          "src/components/timeline/SceneDetailPanel.tsx"
+          "src/components/timeline/SceneDetailPanel.tsx",
+          "src/components/ui/Button.tsx",
+          "src/components/ui/Input.tsx",
+          "src/components/ui/Dialog.tsx",
+          "src/components/ui/Toast.tsx",
+          "src/components/ui/Skeleton.tsx"
         ],
         "stores": [
           "src/stores/auth.ts"
         ],
         "types": [
-          "src/types/index.ts"
+          "src/types/index.ts",
+          "src/components/landing/type.ts"
+        ],
+        "lib": [
+          "src/lib/axios.ts",
+          "src/lib/utils.ts"
+        ],
+        "hooks": [
+          "src/hooks/useAuth.ts"
         ]
       },
       "dependencies": "package.json",
-      "test_directory": null,
+      "test_directory": "src/__tests__",
+      "test_files": [
+        "src/__tests__/setup.ts",
+        "src/__tests__/stores/auth.test.ts"
+      ],
       "config_files": [
         "vite.config.ts",
-        "tsconfig.json"
+        "vitest.config.ts",
+        "tsconfig.json",
+        "tailwind.config.js"
       ],
       "coverage": {
-        "scanned_files": 31,
-        "has_tests": false,
+        "scanned_files": 47,
+        "has_tests": true,
         "has_entry": true,
         "has_api_docs": false,
-        "has_data_models": true
+        "has_data_models": true,
+        "pages_count": 8,
+        "api_clients": 7,
+        "test_coverage": "low"
       }
     }
   ],
+  "infrastructure": {
+    "docker_compose": "docker-compose.yml",
+    "services": [
+      "postgres (PostgreSQL 15)",
+      "redis (Redis 7)",
+      "web (FastAPI backend)",
+      "worker (Celery worker)",
+      "frontend (React SPA)"
+    ],
+    "env_file": ".env.example"
+  },
   "ignored_patterns": [
     "node_modules/**",
     ".git/**",
@@ -126,34 +189,44 @@
     "venv/**",
     "env/**",
     ".DS_Store",
-    "backend/uploads/**"
+    "backend/uploads/photos/*",
+    "backend/uploads/thumbnails/*",
+    "backend/uploads/videos/*"
   ],
   "coverage_summary": {
     "total_modules": 2,
     "modules_with_docs": 2,
-    "modules_with_tests": 0,
-    "estimated_file_count": 65,
-    "scanned_file_count": 65,
+    "modules_with_tests": 2,
+    "estimated_file_count": 85,
+    "scanned_file_count": 85,
     "coverage_percentage": 100
   },
   "gaps": {
     "missing_tests": [
-      "backend - 无单元测试和集成测试",
-      "frontend - 无组件测试和 E2E 测试"
+      "后端 API 端点测试（仅有 auth，缺少 projects/photos/scripts/video_tasks/bgm）",
+      "后端 services 测试（LLM、storage、seed_templates）",
+      "后端 tasks 测试（video generation）",
+      "前端组件测试（TimelineEditor、PhotosPanel、ScriptPanel 等）",
+      "前端页面测试（所有页面组件）",
+      "E2E 测试（完全缺失）"
     ],
     "missing_docs": [],
     "technical_debt": [
-      "配置管理 - 敏感配置硬编码",
+      "配置管理 - 敏感配置硬编码（.env.example 中的默认密钥）",
       "错误处理 - 部分 API 错误信息不详细",
-      "日志 - 缺少结构化日志",
-      "文件存储 - 本地存储不适合生产环境"
+      "日志 - 缺少结构化日志和链路追踪",
+      "文件存储 - 本地存储不适合生产环境（已支持 S3，但需配置文档）",
+      "BGM 功能 - 新增功能，文档已更新但测试不足"
     ]
   },
   "next_steps": [
-    "添加 pytest 测试覆盖后端核心业务逻辑",
-    "添加 Vitest 测试覆盖前端关键组件",
-    "将文件存储迁移到对象存储服务",
-    "添加结构化日志和错误追踪（Sentry）",
-    "生产环境配置管理优化"
-  ]
+    "补充后端 API 端点测试（projects、photos、scripts、video_tasks、bgm）",
+    "补充前端组件测试（TimelineEditor、PhotosPanel、ScriptPanel、VideoPanel）",
+    "添加 E2E 测试（Playwright）覆盖核心用户流程（注册→创建项目→上传照片→生成脚本→生成视频）",
+    "补充 storage service 单元测试",
+    "补充 video generation task 测试（模拟 FFmpeg 调用）",
+    "添加结构化日志（structlog）和错误追踪（Sentry）",
+    "补充 S3 存储配置文档和迁移指南"
+  ],
+  "truncated": false
 }

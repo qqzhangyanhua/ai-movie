@@ -4,15 +4,17 @@
 
 ## 变更记录 (Changelog)
 
+- **2025-03-29 14:23:45** - 完整架构扫描，更新依赖与测试覆盖率统计
+- **2026-03-08 18:01:49** - 更新文档，新增 BGM 功能、存储服务抽象、测试文件统计
 - **2026-03-07 20:10:23** - 初始化后端模块文档
 
 ## 模块职责
 
 FastAPI 异步后端服务，负责：
-- REST API 提供（用户认证、项目管理、照片上传、脚本生成、视频任务）
+- REST API 提供（用户认证、项目管理、照片上传、脚本生成、视频任务、BGM 管理）
 - 数据持久化（PostgreSQL + SQLAlchemy ORM）
 - 异步任务调度（Celery + Redis）
-- 文件存储管理（照片、缩略图、视频）
+- 文件存储管理（照片、缩略图、视频、BGM，支持本地和 S3）
 - AI 服务集成（LLM 脚本生成）
 
 ## 入口与启动
@@ -56,6 +58,7 @@ celery -A app.tasks worker --loglevel=info --concurrency=3
 | `/api/v1/scripts` | `api/scripts.py` | 脚本 CRUD、AI 生成 |
 | `/api/v1/ai-configs` | `api/ai_configs.py` | AI 配置管理 |
 | `/api/v1/video-tasks` | `api/video_tasks.py` | 视频任务创建、查询 |
+| `/api/v1/bgm` | `api/bgm.py` | BGM 库管理 |
 
 ### 核心端点
 
@@ -77,154 +80,215 @@ celery -A app.tasks worker --loglevel=info --concurrency=3
 - `PUT /projects/{id}/photos/reorder` - 批量更新照片顺序
 
 **脚本**:
-- `POST /scripts/generate` - AI 生成脚本（调用 LLM）
-- `GET /scripts` - 获取脚本列表（支持过滤模板/公开脚本）
-- `POST /scripts` - 创建脚本
-- `PUT /scripts/{id}` - 更新脚本
+- `POST /scripts/generate` - AI 生成脚本
+- `GET /scripts/{id}` - 获取脚本详情
+- `PUT /scripts/{id}` - 更新脚本内容
+- `DELETE /scripts/{id}` - 删除脚本
 
 **视频任务**:
-- `POST /video-tasks` - 创建视频生成任务（异步）
-- `GET /video-tasks/{id}` - 查询任务状态和进度
-- `GET /video-tasks` - 获取任务列表
+- `POST /video-tasks` - 创建视频生成任务
+- `GET /video-tasks/{id}` - 查询任务状态
+- `GET /video-tasks` - 获取用户任务列表
+
+**BGM**:
+- `GET /bgm` - 获取 BGM 列表
+- `POST /bgm` - 上传 BGM
+- `DELETE /bgm/{id}` - 删除 BGM
 
 ## 关键依赖与配置
 
 ### 核心依赖
 
-```
+```txt
 fastapi==0.115.6          # Web 框架
-uvicorn==0.34.0           # ASGI 服务器
-sqlalchemy==2.0.36        # ORM
+uvicorn[standard]==0.34.0 # ASGI 服务器
+sqlalchemy[asyncio]==2.0.36  # ORM
 asyncpg==0.30.0           # PostgreSQL 异步驱动
 alembic==1.14.1           # 数据库迁移
-pydantic==2.10.4          # 数据验证
-python-jose==3.3.0        # JWT 处理
-passlib==1.7.4            # 密码哈希
-celery==5.4.0             # 任务队列
-redis==5.2.1              # 缓存/队列
-Pillow==11.1.0            # 图片处理
+pydantic[email]==2.10.4   # 数据验证
+pydantic-settings==2.7.1  # 配置管理
+python-jose[cryptography]==3.3.0  # JWT
+passlib[bcrypt]==1.7.4    # 密码哈希
+celery[redis]==5.4.0      # 任务队列
+redis==5.2.1              # Redis 客户端
+httpx==0.28.1             # HTTP 客户端（调用 LLM）
+Pillow==11.1.0            # 图像处理
 ffmpeg-python==0.2.0      # 视频处理
+boto3==1.35.94            # AWS S3 客户端
 ```
 
 ### 配置文件
 
-**`app/core/config.py`**:
-- 使用 `pydantic-settings` 从环境变量加载配置
-- 关键配置项：
-  - `DATABASE_URL`: PostgreSQL 连接串
-  - `REDIS_URL`: Redis 连接串
-  - `SECRET_KEY`: JWT 签名密钥
-  - `FERNET_KEY`: 敏感数据加密密钥（用于加密 AI API Key）
-  - `MAX_FILE_SIZE_MB`: 单文件上传限制
-  - `MAX_PHOTOS_PER_PROJECT`: 项目照片数量限制
-  - `CORS_ORIGINS`: 允许的跨域来源
+**`app/core/config.py`** - 基于 Pydantic Settings:
+```python
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "AI Movie"
+    API_V1_PREFIX: str = "/api/v1"
 
-**依赖注入**:
-- `app/core/deps.py`: 定义可复用依赖
-  - `get_db()`: 数据库会话
-  - `get_current_user()`: 从 JWT 获取当前用户
-  - `require_auth()`: 认证装饰器
+    DATABASE_URL: str
+    REDIS_URL: str
+
+    SECRET_KEY: str
+    FERNET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    CORS_ORIGINS: str = "http://localhost:3000"
+
+    UPLOAD_DIR: str = "uploads"
+    MAX_FILE_SIZE_MB: int = 10
+    MAX_PHOTOS_PER_PROJECT: int = 50
+
+    STORAGE_PROVIDER: str = "local"  # local | s3
+    S3_BUCKET: str | None = None
+    S3_REGION: str | None = None
+```
 
 ## 数据模型
 
-### 核心表结构
+### SQLAlchemy 模型 (`app/models/`)
 
-**users** (`models/user.py`):
-- `id` (UUID, PK)
-- `email` (唯一)
-- `username`
-- `hashed_password`
-- `created_at`
-
-**projects** (`models/project.py`):
-- `id` (UUID, PK)
-- `user_id` (FK → users)
-- `name`
-- `description`
-- `created_at`, `updated_at`
-
-**photos** (`models/photo.py`):
-- `id` (UUID, PK)
-- `project_id` (FK → projects)
-- `file_path` (相对路径)
-- `thumbnail_path`
-- `file_size`, `width`, `height`
-- `order_index` (排序)
-- `upload_at`
-
-**scripts** (`models/script.py`):
-- `id` (UUID, PK)
-- `project_id` (FK → projects, nullable)
-- `user_id` (FK → users)
-- `title`
-- `content` (JSONB, 存储场景数组)
-- `is_template`, `is_public`
-- `source_type` (system/user/ai_generated)
-- `created_at`
-
-**video_tasks** (`models/video_task.py`):
-- `id` (UUID, PK)
-- `project_id` (FK → projects)
-- `script_id` (FK → scripts)
-- `status` (pending/processing/completed/failed)
-- `progress` (0-100)
-- `result_video_path`
-- `error_message`
-- `created_at`, `completed_at`
-
-**user_ai_configs** (`models/user_ai_config.py`):
-- `id` (UUID, PK)
-- `user_id` (FK → users)
-- `name` (配置名称)
-- `provider` (openai/anthropic/custom)
-- `encrypted_api_key` (Fernet 加密)
-- `base_url`, `model`
-- `is_default`
-
-### 关系映射
-
+**User** - 用户表:
+```python
+id: UUID
+username: str (unique)
+email: str (unique)
+hashed_password: str
+created_at: datetime
 ```
-User (1) ──< (N) Project
-Project (1) ──< (N) Photo
-Project (1) ──< (N) Script
-Project (1) ──< (N) VideoTask
-Script (1) ──< (N) VideoTask
-User (1) ──< (N) UserAiConfig
+
+**Project** - 项目表:
+```python
+id: UUID
+user_id: UUID (FK)
+title: str
+description: str | None
+duration: int (秒)
+created_at: datetime
+updated_at: datetime
+```
+
+**Photo** - 照片表:
+```python
+id: UUID
+project_id: UUID (FK)
+file_path: str (相对路径)
+thumbnail_path: str
+storage_key: str | None (S3 key)
+order: int
+uploaded_at: datetime
+```
+
+**Script** - 脚本表:
+```python
+id: UUID
+project_id: UUID (FK)
+content: dict (JSONB，存储场景数组)
+created_at: datetime
+updated_at: datetime
+```
+
+**VideoTask** - 视频任务表:
+```python
+id: UUID
+project_id: UUID (FK)
+script_id: UUID (FK)
+status: str (pending/processing/completed/failed)
+progress: int (0-100)
+result_video_path: str | None
+error_message: str | None
+created_at: datetime
+completed_at: datetime | None
+```
+
+**BgmTrack** - BGM 音轨表:
+```python
+id: UUID
+user_id: UUID (FK)
+title: str
+file_path: str
+storage_key: str | None
+duration: float (秒)
+uploaded_at: datetime
+```
+
+**UserAiConfig** - AI 配置表:
+```python
+id: UUID
+user_id: UUID (FK)
+provider: str (openai/anthropic/...)
+encrypted_api_key: bytes
+model_name: str
+created_at: datetime
 ```
 
 ## 测试与质量
 
-**当前状态**: 无测试覆盖
+**当前状态**: 有基础测试框架，但覆盖率不足
+- `tests/conftest.py`: pytest 配置和 fixtures
+- `tests/test_auth.py`: 认证端点测试
 
 **建议补充**:
-- 单元测试: `pytest` + `pytest-asyncio`
-- API 测试: `httpx.AsyncClient` 测试端点
-- 数据库测试: 使用测试数据库 + 事务回滚
-- Mock: 对 LLM 调用和 FFmpeg 进行 mock
+- API 端点测试（projects, photos, scripts, video_tasks, bgm）
+- Services 单元测试（LLM, storage）
+- Tasks 测试（video generation，使用 mock）
+- 集成测试（完整用户流程）
+
+**运行测试**:
+```bash
+pytest                    # 运行所有测试
+pytest --cov=app         # 生成覆盖率报告
+pytest -v tests/test_auth.py  # 运行特定测试
+```
 
 ## 常见问题 (FAQ)
-
-**Q: 为什么数据库操作必须用 async/await?**
-A: 使用 `asyncpg` 驱动和 `AsyncSession`，所有数据库操作都是异步的。同步调用会导致运行时错误。
-
-**Q: Celery 任务为什么用同步数据库连接?**
-A: Celery Worker 运行在独立进程，不在 FastAPI 事件循环中。使用 `psycopg2` 同步驱动避免事件循环冲突。
 
 **Q: 如何添加新的 API 端点?**
 A:
 1. 在 `app/api/` 创建路由模块
-2. 在 `app/api/router.py` 注册路由
-3. 使用 `Depends(get_current_user)` 添加认证
+2. 在 `app/api/router.py` 中注册路由
+3. 在 `app/schemas/` 定义请求/响应模型
+4. 使用 `Depends(get_current_user)` 添加认证
 
-**Q: 如何加密敏感数据?**
-A: 使用 `app/core/security.py` 中的 `encrypt_data()` 和 `decrypt_data()`，基于 Fernet 对称加密。
+**Q: 如何处理文件上传?**
+A: 使用 `app/services/storage.py` 的 `StorageService`:
+```python
+storage = StorageService()
+key = await storage.save_file(file, "photos")
+url = storage.get_file_url(key)
+```
 
-**Q: 视频生成失败如何调试?**
+**Q: 如何调用 LLM 生成脚本?**
+A: 使用 `app/services/llm.py` 的 `LLMService`:
+```python
+llm = LLMService(config)
+script = await llm.generate_script(photos, prompt)
+```
+
+**Q: Celery 任务如何更新进度?**
+A: 在任务中直接更新数据库:
+```python
+task.progress = 50
+session.commit()
+```
+
+**Q: 如何切换到 S3 存储?**
+A: 设置环境变量:
+```bash
+STORAGE_PROVIDER=s3
+S3_BUCKET=my-bucket
+S3_REGION=us-east-1
+S3_ACCESS_KEY=xxx
+S3_SECRET_KEY=xxx
+```
+
+**Q: 数据库迁移失败怎么办?**
 A:
-1. 查看 Celery Worker 日志
-2. 检查 FFmpeg 是否安装
-3. 验证照片文件路径是否存在
-4. 查看 `video_tasks.error_message` 字段
+```bash
+alembic downgrade -1  # 回滚一个版本
+alembic history       # 查看迁移历史
+alembic current       # 查看当前版本
+```
 
 ## 相关文件清单
 
@@ -239,21 +303,38 @@ backend/
 │   │   ├── photos.py           # 照片管理
 │   │   ├── scripts.py          # 脚本管理
 │   │   ├── ai_configs.py       # AI 配置
-│   │   └── video_tasks.py      # 视频任务
+│   │   ├── video_tasks.py      # 视频任务
+│   │   └── bgm.py              # BGM 管理
 │   ├── core/
 │   │   ├── config.py           # 配置管理
 │   │   ├── database.py         # 数据库连接
 │   │   ├── deps.py             # 依赖注入
 │   │   └── security.py         # 安全工具（JWT、加密）
 │   ├── models/                 # SQLAlchemy 模型
+│   │   ├── user.py
+│   │   ├── project.py
+│   │   ├── photo.py
+│   │   ├── script.py
+│   │   ├── video_task.py
+│   │   ├── user_ai_config.py
+│   │   └── bgm.py
 │   ├── schemas/                # Pydantic schemas
 │   ├── services/
 │   │   ├── llm.py              # LLM 服务封装
-│   │   └── seed_templates.py  # 初始化模板数据
+│   │   ├── seed_templates.py  # 初始化模板数据
+│   │   └── storage.py          # 存储服务抽象
 │   └── tasks/
 │       ├── __init__.py         # Celery 应用初始化
 │       └── video.py            # 视频生成任务
 ├── alembic/                    # 数据库迁移
-│   └── env.py                  # Alembic 配置
-└── requirements.txt            # Python 依赖
+│   ├── env.py                  # Alembic 配置
+│   └── versions/
+│       ├── 001_storage_migration.py
+│       └── e8bf1bffa176_add_bgm_tracks_table.py
+├── tests/                      # 测试目录
+│   ├── conftest.py
+│   └── test_auth.py
+├── requirements.txt            # Python 依赖
+├── alembic.ini                 # Alembic 配置
+└── Dockerfile                  # Docker 镜像构建
 ```

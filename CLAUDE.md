@@ -2,6 +2,8 @@
 
 ## 变更记录 (Changelog)
 
+- **2025-03-29 14:23:45** - 完整架构扫描，更新模块索引与覆盖率报告
+- **2026-03-08 18:01:49** - 更新架构扫描，新增 BGM 功能模块，补充测试文件统计
 - **2026-03-07 20:10:23** - 初始化项目文档，完成架构扫描
 
 ## 项目愿景
@@ -16,14 +18,14 @@ AI Movie 是一个 AI 驱动的视频制作平台。用户上传照片，通过 
 - **后端**: FastAPI 异步框架，提供 RESTful API
 - **数据库**: PostgreSQL (主存储) + Redis (缓存/队列)
 - **任务队列**: Celery + Redis，处理视频渲染等耗时任务
-- **文件存储**: 本地文件系统 (uploads/)
+- **文件存储**: 本地文件系统 (uploads/) 或 S3 对象存储
 
 **数据流**:
 ```
 用户上传照片 → 后端存储 + 生成缩略图
 用户触发 AI 生成脚本 → LLM 服务 → 返回场景列表
-用户编辑时间线 → 提交视频生成任务 → Celery Worker
-Worker 调用 FFmpeg → 合成视频 → 更新任务状态
+用户编辑时间线 + 选择 BGM → 提交视频生成任务 → Celery Worker
+Worker 调用 FFmpeg → 合成视频（照片 + 转场 + BGM）→ 更新任务状态
 ```
 
 ## 模块结构图
@@ -100,15 +102,20 @@ celery -A app.tasks worker --loglevel=info --concurrency=3
 - `SECRET_KEY`: JWT 签名密钥
 - `FERNET_KEY`: 敏感数据加密密钥
 - `CORS_ORIGINS`: 允许的前端域名
+- `STORAGE_PROVIDER`: 存储提供商 (local/s3)
+- `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`: S3 配置
 
 ## 测试策略
 
-**当前状态**: 项目未包含自动化测试
+**当前状态**:
+- 后端: 有基础测试框架（pytest），但覆盖率不足（仅 2 个测试文件）
+- 前端: 有基础测试框架（Vitest），但覆盖率不足（仅 2 个测试文件）
+- E2E: 无
 
 **建议补充**:
-- 后端: pytest + pytest-asyncio，覆盖 API 端点和业务逻辑
+- 后端: pytest + pytest-asyncio，覆盖 API 端点、业务逻辑、Celery 任务
 - 前端: Vitest + React Testing Library，覆盖关键组件和交互
-- E2E: Playwright，覆盖核心用户流程
+- E2E: Playwright，覆盖核心用户流程（注册 → 创建项目 → 上传照片 → 生成脚本 → 生成视频）
 
 ## 编码规范
 
@@ -134,31 +141,70 @@ celery -A app.tasks worker --loglevel=info --concurrency=3
 
 ### 数据结构优先
 在修改功能前，先理解核心数据模型：
-- `User` → `Project` → `Photo` / `Script` → `VideoTask`
+- `User` → `Project` → `Photo` / `Script` / `BgmTrack` → `VideoTask`
 - `Script.content` 是 JSONB，存储场景数组
 - `VideoTask` 通过 Celery 异步处理
+- `BgmTrack` 存储背景音乐信息（新增功能）
 
 ### 关键路径
 1. **照片上传**: `POST /api/v1/projects/{id}/photos` → 存储原图 + 生成缩略图
 2. **脚本生成**: `POST /api/v1/scripts/generate` → 调用 LLM → 返回场景列表
-3. **视频生成**: `POST /api/v1/video-tasks` → 创建任务 → Celery Worker → FFmpeg 合成
+3. **BGM 管理**: `GET /api/v1/bgm` → 获取 BGM 列表，`POST /api/v1/bgm` → 上传 BGM
+4. **视频生成**: `POST /api/v1/video-tasks` → 创建任务 → Celery Worker → FFmpeg 合成
 
 ### 常见陷阱
 - **异步数据库**: 后端必须用 `async def` + `await`
 - **CORS**: 前端开发时通过 Vite proxy，生产环境需配置 `CORS_ORIGINS`
 - **文件路径**: 上传文件存储在 `uploads/`，数据库只存相对路径
 - **任务状态**: VideoTask 状态由 Celery Worker 更新，前端需轮询
+- **存储切换**: 本地开发用 local 存储，生产环境建议用 S3
 
 ### 扩展建议
-- **缓存**: 对频繁查询的数据（如模板脚本）添加 Redis 缓存
+- **缓存**: 对频繁查询的数据（如模板脚本、BGM 列表）添加 Redis 缓存
 - **CDN**: 生产环境将 `uploads/` 迁移到对象存储 + CDN
 - **监控**: 添加 Sentry 错误追踪和 Prometheus 指标
 - **权限**: 当前只有用户级权限，可扩展为团队/组织级
+- **BGM 推荐**: 基于场景情绪自动推荐合适的 BGM
 
 ## 技术债务
 
-1. **缺少测试**: 无单元测试和集成测试
+1. **测试覆盖率不足**: 后端和前端都只有基础测试，需补充完整测试套件
 2. **错误处理**: 部分 API 错误信息不够详细
 3. **日志**: 缺少结构化日志和链路追踪
-4. **配置管理**: 敏感配置硬编码在代码中（如默认密钥）
-5. **文件存储**: 本地存储不适合生产环境，需迁移到对象存储
+4. **配置管理**: 敏感配置硬编码在 `.env.example` 中（如默认密钥）
+5. **BGM 功能**: 新增功能，需补充文档和测试
+6. **存储迁移**: 本地存储不适合生产环境，需配置 S3
+
+## 覆盖率报告
+
+**扫描时间**: 2025-03-29 14:23:45
+
+### 后端模块
+- 总文件数: 38 个 Python 文件
+- API 端点: 7 个路由模块
+- 数据模型: 7 个 SQLAlchemy 模型
+- 测试文件: 2 个（conftest.py, test_auth.py）
+- 覆盖状态: 完整扫描，测试覆盖率低
+
+### 前端模块
+- 总文件数: 47 个 TypeScript/TSX 文件
+- 页面组件: 8 个
+- API 客户端: 7 个
+- 测试文件: 2 个（setup.ts, auth.test.ts）
+- 覆盖状态: 完整扫描，测试覆盖率低
+
+### 主要缺口
+- 后端 API 端点测试（projects, photos, scripts, video_tasks, bgm）
+- 后端 services 测试（LLM, storage）
+- 后端 tasks 测试（video generation）
+- 前端组件测试（TimelineEditor, PhotosPanel, ScriptPanel）
+- 前端页面测试（所有页面）
+- E2E 测试（完全缺失）
+
+## 下一步建议
+
+1. 补充后端 pytest 测试（API 端点、业务逻辑、Celery 任务）
+2. 补充前端 Vitest 测试（组件、hooks、API 客户端）
+3. 添加 E2E 测试（Playwright）覆盖核心用户流程
+4. 添加结构化日志（structlog）和错误追踪（Sentry）
+5. 生产环境配置管理优化（使用环境变量管理敏感信息）

@@ -4,12 +4,14 @@
 
 ## 变更记录 (Changelog)
 
+- **2025-03-29 14:23:45** - 完整架构扫描，更新依赖与测试覆盖率统计
+- **2026-03-08 18:01:49** - 更新文档，新增 Landing Page、BGM 功能、测试文件统计
 - **2026-03-07 20:10:23** - 初始化前端模块文档
 
 ## 模块职责
 
 React 19 单页应用，负责：
-- 用户界面渲染（项目管理、照片上传、时间线编辑、视频生成）
+- 用户界面渲染（Landing Page、项目管理、照片上传、时间线编辑、视频生成）
 - 状态管理（Zustand 全局状态 + React Query 服务端状态）
 - API 调用（通过 Axios 与后端通信）
 - 交互逻辑（拖拽排序、表单验证、实时反馈）
@@ -31,6 +33,9 @@ pnpm dev      # 开发服务器 (http://localhost:5173)
 pnpm build    # 生产构建
 pnpm preview  # 预览生产构建
 pnpm lint     # ESLint 检查
+pnpm test     # 运行测试
+pnpm test:ui  # 测试 UI 界面
+pnpm test:coverage  # 测试覆盖率
 ```
 
 ## 对外接口
@@ -39,11 +44,13 @@ pnpm lint     # ESLint 检查
 
 | 路径 | 组件 | 权限 | 功能 |
 |------|------|------|------|
+| `/` | `LandingPage` | 公开 | 产品介绍、功能展示 |
 | `/login` | `LoginPage` | 游客 | 用户登录 |
 | `/register` | `RegisterPage` | 游客 | 用户注册 |
 | `/projects` | `ProjectsPage` | 认证 | 项目列表 |
 | `/projects/:id` | `ProjectDetailPage` | 认证 | 项目详情（照片、脚本、视频） |
 | `/settings` | `SettingsPage` | 认证 | AI 配置管理 |
+| `/profile` | `ProfilePage` | 认证 | 用户资料 |
 | `/community` | `CommunityPage` | 认证 | 社区模板（未实现） |
 
 ### API 客户端模块
@@ -55,6 +62,7 @@ pnpm lint     # ESLint 检查
 - `scripts.ts` - 脚本 CRUD、AI 生成
 - `ai-configs.ts` - AI 配置管理
 - `video-tasks.ts` - 视频任务创建、查询
+- `bgm.ts` - BGM 管理
 
 **基础配置**: `src/lib/axios.ts`
 - Axios 实例配置
@@ -78,7 +86,8 @@ pnpm lint     # ESLint 检查
   "react-hook-form": "^7.71.2",
   "zod": "^4.3.6",
   "lucide-react": "^0.577.0",
-  "tailwindcss": "^4.2.1"
+  "tailwindcss": "^4.2.1",
+  "framer-motion": "^12.35.0"
 }
 ```
 
@@ -107,6 +116,7 @@ pnpm lint     # ESLint 检查
 - `Script` - 脚本
 - `VideoTask` - 视频任务
 - `UserAiConfig` - AI 配置
+- `BgmTrack` - BGM 音轨
 - `AuthTokens` - 认证令牌
 - `PaginatedResponse<T>` - 分页响应
 
@@ -132,12 +142,15 @@ interface AuthState {
 
 ## 测试与质量
 
-**当前状态**: 无测试覆盖
+**当前状态**: 有基础测试框架，但覆盖率不足
+- `src/__tests__/setup.ts`: Vitest 配置
+- `src/__tests__/stores/auth.test.ts`: 认证状态测试
 
 **建议补充**:
 - 组件测试: Vitest + React Testing Library
 - E2E 测试: Playwright
 - 类型检查: `tsc --noEmit`
+- 覆盖目标: 80% 以上代码覆盖率
 
 **ESLint 配置**:
 - `eslint-plugin-react-hooks` - React Hooks 规则
@@ -174,6 +187,22 @@ const schema = z.object({ name: z.string().min(1) })
 const { register, handleSubmit } = useForm({ resolver: zodResolver(schema) })
 ```
 
+**Q: 如何添加动画效果?**
+A: 使用 `framer-motion`:
+```typescript
+import { motion } from 'framer-motion'
+<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>...</motion.div>
+```
+
+**Q: 如何处理文件上传?**
+A: 使用 `react-dropzone`:
+```typescript
+const { getRootProps, getInputProps } = useDropzone({
+  accept: { 'image/*': [] },
+  onDrop: (files) => uploadMutation.mutate(files)
+})
+```
+
 ## 相关文件清单
 
 ```
@@ -189,7 +218,8 @@ frontend/
 │   │   ├── photos.ts
 │   │   ├── scripts.ts
 │   │   ├── ai-configs.ts
-│   │   └── video-tasks.ts
+│   │   ├── video-tasks.ts
+│   │   └── bgm.ts
 │   ├── stores/
 │   │   └── auth.ts                       # Zustand 认证状态
 │   ├── hooks/
@@ -198,30 +228,50 @@ frontend/
 │   │   ├── axios.ts                      # Axios 配置
 │   │   └── utils.ts                      # 工具函数
 │   ├── pages/                            # 页面组件
+│   │   ├── LandingPage.tsx
 │   │   ├── LoginPage.tsx
 │   │   ├── RegisterPage.tsx
 │   │   ├── ProjectsPage.tsx
 │   │   ├── ProjectDetailPage.tsx
 │   │   ├── SettingsPage.tsx
+│   │   ├── ProfilePage.tsx
 │   │   └── CommunityPage.tsx
 │   ├── components/
 │   │   ├── layout/
 │   │   │   └── AppLayout.tsx             # 主布局
+│   │   ├── landing/                      # Landing Page 组件
+│   │   │   ├── LandingNav.tsx
+│   │   │   ├── Hero.tsx
+│   │   │   ├── Features.tsx
+│   │   │   ├── HowItWorks.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   └── type.ts
+│   │   ├── auth/
+│   │   │   └── AuthModal.tsx
 │   │   ├── ui/                           # 基础 UI 组件
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
-│   │   │   └── Dialog.tsx
+│   │   │   ├── Dialog.tsx
+│   │   │   ├── Toast.tsx
+│   │   │   └── Skeleton.tsx
 │   │   ├── project/                      # 项目相关组件
 │   │   │   ├── PhotosPanel.tsx
 │   │   │   ├── ScriptPanel.tsx
 │   │   │   ├── VideoPanel.tsx
-│   │   │   └── GenerateScriptDialog.tsx
+│   │   │   ├── GenerateScriptDialog.tsx
+│   │   │   ├── BgmPicker.tsx
+│   │   │   └── ScenePreview.tsx
 │   │   └── timeline/                     # 时间线编辑器
 │   │       ├── TimelineEditor.tsx
 │   │       ├── PhotoPool.tsx
 │   │       ├── SortableSceneCard.tsx
 │   │       └── SceneDetailPanel.tsx
+│   └── __tests__/                        # 测试目录
+│       ├── setup.ts
+│       └── stores/
+│           └── auth.test.ts
 ├── vite.config.ts                        # Vite 配置
+├── vitest.config.ts                      # Vitest 配置
 ├── tsconfig.json                         # TypeScript 配置
 ├── package.json                          # 依赖管理
 └── tailwind.config.js                    # Tailwind CSS 配置
