@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAuth } from "@/lib/auth-utils";
 import { prisma } from "@/lib/prisma";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
+import { CharacterStep } from "@/components/wizard/steps/CharacterStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
 
 type PageProps = {
@@ -25,6 +26,18 @@ export default async function CreateProjectWorkbenchPage({
     notFound();
   }
 
+  const [allCharacters, projectCharacters] = await Promise.all([
+    prisma.character.findMany({
+      where: { userId: session.user.id },
+    }),
+    prisma.projectCharacter.findMany({
+      where: { projectId },
+      select: { characterId: true },
+    }),
+  ]);
+
+  const selectedCharacterIds = projectCharacters.map((pc) => pc.characterId);
+
   const validSteps: StepKey[] = [
     "characters",
     "script",
@@ -39,7 +52,11 @@ export default async function CreateProjectWorkbenchPage({
 
   const stepPlaceholders: Record<StepKey, React.ReactNode> = {
     characters: (
-      <p className="text-muted-foreground">角色管理（待实现）</p>
+      <CharacterStep
+        projectId={projectId}
+        allCharacters={allCharacters}
+        selectedCharacterIds={selectedCharacterIds}
+      />
     ),
     script: <p className="text-muted-foreground">剧本选择（待实现）</p>,
     storyboard: (
