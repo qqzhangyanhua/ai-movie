@@ -5,6 +5,7 @@ import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { CharacterStep } from "@/components/wizard/steps/CharacterStep";
 import { ScriptStep } from "@/components/wizard/steps/ScriptStep";
 import { StoryboardStep } from "@/components/wizard/steps/StoryboardStep";
+import { GenerateStep } from "@/components/wizard/steps/GenerateStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
 
 type PageProps = {
@@ -28,7 +29,7 @@ export default async function CreateProjectWorkbenchPage({
     notFound();
   }
 
-  const [allCharacters, projectCharacters, script, storyboards] =
+  const [allCharacters, projectCharacters, script, storyboards, video] =
     await Promise.all([
       prisma.character.findMany({
         where: { userId: session.user.id },
@@ -44,6 +45,10 @@ export default async function CreateProjectWorkbenchPage({
         where: { projectId },
         orderBy: { sceneNumber: "asc" },
         include: { videoClip: true },
+      }),
+      prisma.video.findFirst({
+        where: { projectId },
+        orderBy: { createdAt: "desc" },
       }),
     ]);
 
@@ -85,7 +90,13 @@ export default async function CreateProjectWorkbenchPage({
       />
     ),
     generate: (
-      <p className="text-muted-foreground">视频生成（待实现）</p>
+      <GenerateStep
+        projectId={projectId}
+        videoStatus={video?.status ?? null}
+        videoUrl={video?.videoUrl ?? null}
+        storyboardCount={storyboards.length}
+        isGenerating={project.status === "GENERATING"}
+      />
     ),
     result: (
       <p className="text-muted-foreground">结果预览（待实现）</p>
