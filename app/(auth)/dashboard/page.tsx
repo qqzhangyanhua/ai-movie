@@ -2,37 +2,10 @@ import Link from "next/link";
 import { requireAuth } from "@/lib/auth-utils";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/lib/button-variants";
 import { Plus, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ProjectStatus } from "@prisma/client";
-
-const STATUS_LABELS: Record<ProjectStatus, string> = {
-  DRAFT: "草稿",
-  SCRIPT_READY: "脚本就绪",
-  STORYBOARD_READY: "分镜就绪",
-  GENERATING: "生成中",
-  COMPLETED: "已完成",
-  FAILED: "失败",
-};
-
-const STATUS_VARIANTS: Record<ProjectStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  DRAFT: "secondary",
-  SCRIPT_READY: "outline",
-  STORYBOARD_READY: "outline",
-  GENERATING: "default",
-  COMPLETED: "default",
-  FAILED: "destructive",
-};
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
+import { ProjectCard } from "@/components/project/ProjectCard";
 
 export default async function DashboardPage() {
   const session = await requireAuth();
@@ -74,28 +47,7 @@ export default async function DashboardPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <Link key={project.id} href={`/dashboard/${project.id}`}>
-              <Card
-                className={cn(
-                  "transition-colors hover:bg-accent/50",
-                  "cursor-pointer"
-                )}
-              >
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <CardTitle className="text-base font-medium line-clamp-1">
-                    {project.title}
-                  </CardTitle>
-                  <Badge variant={STATUS_VARIANTS[project.status]}>
-                    {STATUS_LABELS[project.status]}
-                  </Badge>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    更新于 {formatDate(project.updatedAt)}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
+            <ProjectCard key={project.id} project={project} />
           ))}
         </div>
       )}
