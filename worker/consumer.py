@@ -13,6 +13,8 @@ from config import DATABASE_URL, REDIS_URL
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
+from services.character_service import generate_character_views
+from services.voice_service import generate_scene_voiceovers
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,26 +120,61 @@ def handle_video_compose(r: redis.Redis, conn, payload: dict) -> None:
 
 
 def handle_character_generate(r: redis.Redis, conn, payload: dict) -> None:
-    """Handle character:generate task. Stub."""
+    """Handle character:generate task. Generates three views via DALL-E 3 and updates DB."""
     project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    photo_url = data.get("photoUrl", "")
+    character_name = data.get("characterName", "")
+    character_id = data.get("characterId", "")
+
     publish_progress(r, project_id, "processing", {"step": "generating"})
-    time.sleep(0.5)
-    publish_progress(r, project_id, "completed", {})
+
+    views = generate_character_views(photo_url, character_name)
+
     if conn:
         try:
             cur = conn.cursor()
-            cur.execute(
-                """
-                UPDATE "Character" SET "updatedAt" = NOW()
-                WHERE id IN (SELECT "characterId" FROM "ProjectCharacter" WHERE "projectId" = %s)
-                """,
-                (project_id,),
-            )
+            if character_id:
+                cur.execute(
+                    """
+                    UPDATE "Character"
+                    SET "frontViewUrl" = %s, "sideViewUrl" = %s, "backViewUrl" = %s
+                    WHERE id = %s
+                      AND id IN (SELECT "characterId" FROM "ProjectCharacter" WHERE "projectId" = %s)
+                    """,
+                    (
+                        views.get("front_view_url"),
+                        views.get("side_view_url"),
+                        views.get("back_view_url"),
+                        character_id,
+                        project_id,
+                    ),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE "Character" c
+                    SET "frontViewUrl" = %s, "sideViewUrl" = %s, "backViewUrl" = %s
+                    FROM "ProjectCharacter" pc
+                    WHERE c.id = pc."characterId" AND pc."projectId" = %s
+                      AND (c.name = %s OR c."photoUrl" = %s)
+                    """,
+                    (
+                        views.get("front_view_url"),
+                        views.get("side_view_url"),
+                        views.get("back_view_url"),
+                        project_id,
+                        character_name,
+                        photo_url,
+                    ),
+                )
             conn.commit()
             cur.close()
         except Exception as e:
             logger.error("DB update failed: %s", e)
             conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"views": views})
 
 
 def handle_video_clip(r: redis.Redis, conn, payload: dict) -> None:
@@ -198,12 +235,45 @@ def handle_storyboard_preview(r: redis.Redis, conn, payload: dict) -> None:
     publish_progress(r, project_id, "completed", {"storyboardId": storyboard_id})
 
 
+def handle_voice_generate(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle voice:generate task."""
+    project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    scenes = data.get("scenes", [])
+
+    publish_progress(r, project_id, "processing", {"step": "generating_voiceover"})
+
+    results = generate_scene_voiceovers(scenes)
+    voiceover_url = None
+    if results:
+        voiceover_url = results[0].get("voiceover_url")
+
+    if conn and voiceover_url:
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE "Video" SET "voiceoverUrl" = %s
+                WHERE id = (SELECT id FROM "Video" WHERE "projectId" = %s ORDER BY "createdAt" DESC LIMIT 1)
+                """,
+                (voiceover_url, project_id),
+            )
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            logger.error("DB update failed: %s", e)
+            conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"voiceoverUrl": voiceover_url, "scenes": results})
+
+
 HANDLERS = {
     "script:generate": handle_script_generate,
     "video:compose": handle_video_compose,
     "character:generate": handle_character_generate,
     "video:clip": handle_video_clip,
     "storyboard:preview": handle_storyboard_preview,
+    "voice:generate": handle_voice_generate,
 }
 
 
