@@ -3,6 +3,7 @@
 import json
 import logging
 import time
+import uuid
 from urllib.parse import urlparse
 
 import psycopg2
@@ -47,17 +48,35 @@ def publish_progress(r: redis.Redis, project_id: str, status: str, data: dict | 
 
 
 def handle_script_generate(r: redis.Redis, conn, payload: dict) -> None:
-    """Handle script:generate task. Stub."""
+    """Handle script:generate task. Uses real LLM and saves to DB."""
     project_id = payload.get("projectId", "")
     publish_progress(r, project_id, "processing", {"step": "generating"})
-    time.sleep(0.5)
+
     prompt = (payload.get("data") or {}).get("prompt", "")
     characters = (payload.get("data") or {}).get("characters", [])
+
     script_data = generate_script(prompt, characters)
-    publish_progress(r, project_id, "completed", {"script": script_data})
+    scenes = script_data.get("scenes", [])
+    title = script_data.get("title", prompt[:20] if prompt else "AI 微电影")
+    metadata = json.dumps({"title": title})
+    content = json.dumps(scenes)
+
     if conn:
         try:
             cur = conn.cursor()
+            script_id = str(uuid.uuid4())
+            cur.execute(
+                """
+                INSERT INTO "Script" (id, "projectId", type, content, metadata)
+                VALUES (%s, %s, 'AI_GENERATED', %s::jsonb, %s::jsonb)
+                ON CONFLICT ("projectId") DO UPDATE SET
+                    type = EXCLUDED.type,
+                    content = EXCLUDED.content,
+                    metadata = EXCLUDED.metadata,
+                    "updatedAt" = NOW()
+                """,
+                (script_id, project_id, content, metadata),
+            )
             cur.execute(
                 """
                 UPDATE "Project" SET status = 'SCRIPT_READY'
@@ -70,6 +89,8 @@ def handle_script_generate(r: redis.Redis, conn, payload: dict) -> None:
         except Exception as e:
             logger.error("DB update failed: %s", e)
             conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"script": script_data})
 
 
 def handle_video_compose(r: redis.Redis, conn, payload: dict) -> None:
