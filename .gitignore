@@ -51,6 +51,7 @@ backend/uploads/videos/*
 !backend/uploads/photos/.gitkeep
 !backend/uploads/thumbnails/.gitkeep
 !backend/uploads/videos/.gitkeep
+public/uploads/
 
 # Logs
 *.log
