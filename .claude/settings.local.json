@@ -12,7 +12,8 @@
       "Bash(git diff:*)",
       "Bash(pnpm dlx:*)",
       "Bash(printf \\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n:*)",
-      "Bash(/Users/zhangyanhua/AI/ai-movie/frontend/src/lib/utils.ts:*)"
+      "Bash(/Users/zhangyanhua/AI/ai-movie/frontend/src/lib/utils.ts:*)",
+      "mcp__ide__executeCode"
     ]
   }
 }

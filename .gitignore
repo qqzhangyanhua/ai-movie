@@ -56,4 +56,8 @@ public/uploads/
 # Logs
 *.log
 
+# Testing
+playwright-report/
+test-results/
+
 /lib/generated/prisma
