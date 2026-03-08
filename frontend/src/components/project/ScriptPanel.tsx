@@ -117,9 +117,9 @@ export function ScriptPanel({ projectId }: ScriptPanelProps) {
       {isLoading ? (
         <div className="py-10 text-center text-muted-foreground">加载中...</div>
       ) : scripts.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border-2 border-dashed border-border py-10">
-          <p className="text-sm text-muted-foreground">还没有剧本</p>
-          <Button className="mt-3" size="sm" onClick={() => setIsCreating(true)}>
+        <div className="flex flex-col items-center rounded-3xl border border-white/10 border-dashed bg-[#111111]/30 py-12">
+          <p className="text-sm text-muted-foreground font-light">还没有剧本</p>
+          <Button className="mt-4 rounded-full" size="sm" onClick={() => setIsCreating(true)}>
             创建第一个剧本
           </Button>
         </div>
@@ -128,12 +128,12 @@ export function ScriptPanel({ projectId }: ScriptPanelProps) {
           {scripts.map((script) => (
             <div
               key={script.id}
-              className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-accent/50 cursor-pointer"
+              className="flex items-center justify-between rounded-2xl border border-white/5 bg-[#111111]/80 p-5 transition-all duration-300 hover:border-white/20 hover:bg-[#151515] shadow-lg shadow-black/20 cursor-pointer group"
               onClick={() => setEditingScript(script)}
             >
               <div>
-                <h3 className="font-medium">{script.title}</h3>
-                <p className="text-xs text-muted-foreground">
+                <h3 className="font-medium tracking-tight text-white/90 group-hover:text-white transition-colors">{script.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground font-light uppercase tracking-wider">
                   {script.content?.scenes?.length ?? 0} 个场景 ·{' '}
                   {script.content?.metadata?.total_duration?.toFixed(1) ?? 0}s
                 </p>

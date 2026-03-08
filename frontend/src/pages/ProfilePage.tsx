@@ -81,7 +81,7 @@ export function ProfilePage() {
         return (
             <div className="p-8 max-w-2xl mx-auto space-y-6">
                 <Skeleton className="h-8 w-48" />
-                <div className="rounded-2xl border border-white/5 bg-card/40 p-8 space-y-6">
+                <div className="rounded-2xl border border-white/5 bg-[#111111]/80 p-8 space-y-6">
                     <div className="flex items-center gap-5">
                         <Skeleton className="h-20 w-20 rounded-full" />
                         <div className="flex-1 space-y-3">
@@ -114,7 +114,7 @@ export function ProfilePage() {
                 </h1>
 
                 {/* Profile Card */}
-                <div className="rounded-2xl border border-white/5 bg-card/40 backdrop-blur-md p-8 mb-6">
+                <div className="rounded-2xl border border-white/5 bg-[#111111]/80 shadow-2xl shadow-black backdrop-blur-md p-8 mb-6">
                     <div className="flex items-center gap-5 mb-8">
                         <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/30 to-indigo-500/30 flex items-center justify-center border border-white/10 shadow-inner">
                             <User className="h-10 w-10 text-primary" />
@@ -125,19 +125,19 @@ export function ProfilePage() {
                                     <input
                                         value={editUsername}
                                         onChange={(e) => setEditUsername(e.target.value)}
-                                        className="h-10 rounded-lg border border-input bg-background px-3 text-lg font-bold flex-1"
+                                        className="h-11 rounded-full border border-white/10 bg-[#111111]/80 px-4 text-base font-bold text-white focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 flex-1 transition-all"
                                         autoFocus
                                     />
                                     <button
                                         onClick={handleSaveUsername}
                                         disabled={updateMut.isPending}
-                                        className="rounded-lg p-2.5 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                        className="rounded-full p-2.5 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                     >
                                         <Check className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => setIsEditing(false)}
-                                        className="rounded-lg p-2.5 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors"
+                                        className="rounded-full p-2.5 bg-white/5 text-muted-foreground hover:bg-white/10 transition-colors"
                                     >
                                         <X className="h-4 w-4" />
                                     </button>
@@ -147,7 +147,7 @@ export function ProfilePage() {
                                     <h2 className="text-2xl font-bold">{user.username}</h2>
                                     <button
                                         onClick={startEdit}
-                                        className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                                        className="rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
                                     >
                                         <Edit2 className="h-4 w-4" />
                                     </button>
@@ -165,9 +165,9 @@ export function ProfilePage() {
                         {stats.map((stat) => (
                             <div
                                 key={stat.label}
-                                className="rounded-xl border border-white/5 bg-white/5 p-4 flex items-center gap-3"
+                                className="rounded-2xl border border-white/5 bg-white/5 p-4 flex items-center gap-3"
                             >
-                                <div className="rounded-lg bg-primary/10 p-2.5">
+                                <div className="rounded-2xl bg-primary/10 p-2.5">
                                     <stat.icon className="h-4 w-4 text-primary" />
                                 </div>
                                 <div>
@@ -180,7 +180,7 @@ export function ProfilePage() {
 
                     {/* Info rows */}
                     <div className="space-y-4 border-t border-white/5 pt-6">
-                        <div className="flex items-center justify-between rounded-xl bg-white/5 px-5 py-4">
+                        <div className="flex items-center justify-between rounded-2xl bg-white/5 px-5 py-4">
                             <div className="flex items-center gap-3">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm text-muted-foreground">注册时间</span>
@@ -193,7 +193,7 @@ export function ProfilePage() {
                                 })}
                             </span>
                         </div>
-                        <div className="flex items-center justify-between rounded-xl bg-white/5 px-5 py-4">
+                        <div className="flex items-center justify-between rounded-2xl bg-white/5 px-5 py-4">
                             <div className="flex items-center gap-3">
                                 <Key className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm text-muted-foreground">账户安全</span>

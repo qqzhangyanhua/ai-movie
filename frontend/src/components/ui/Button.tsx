@@ -13,20 +13,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <motion.button
         ref={ref}
         disabled={disabled}
-        whileTap={{ scale: 0.99 }}
+        whileTap={{ scale: 0.98 }}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 shadow-sm',
+          'inline-flex items-center justify-center rounded-full font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 shadow-sm whitespace-nowrap',
           {
-            'bg-primary text-primary-foreground hover:bg-primary/90': variant === 'primary',
-            'bg-secondary text-secondary-foreground hover:bg-secondary/80': variant === 'secondary',
-            'bg-destructive text-destructive-foreground hover:bg-destructive/90': variant === 'destructive',
-            'shadow-none hover:bg-accent hover:text-accent-foreground': variant === 'ghost',
-            'border border-input bg-background hover:bg-accent hover:text-accent-foreground': variant === 'outline',
+            'bg-white text-black hover:bg-neutral-200 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]': variant === 'primary',
+            'bg-white/10 text-white hover:bg-white/20 border border-white/5 hover:border-white/10': variant === 'secondary',
+            'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30': variant === 'destructive',
+            'shadow-none text-white/60 hover:text-white hover:bg-white/10': variant === 'ghost',
+            'bg-transparent border border-white/20 text-white hover:bg-white/5 hover:border-white/40 shadow-none hover:shadow-none': variant === 'outline',
           },
           {
-            'h-8 px-3 text-xs': size === 'sm',
-            'h-10 px-4 text-sm': size === 'md',
-            'h-11 px-6 text-base': size === 'lg',
+            'h-8 px-4 text-xs': size === 'sm',
+            'h-11 px-6 text-sm': size === 'md',
+            'h-12 px-8 text-base': size === 'lg',
           },
           className
         )}

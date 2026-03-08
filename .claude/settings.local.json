@@ -4,7 +4,9 @@
       "Bash(/Users/zhangyanhua/.claude/bin/codeagent-wrapper:*)",
       "Bash(python:*)",
       "Bash(pnpm add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__mcp-shrimp-task-manager__process_thought"
     ]
   }
 }

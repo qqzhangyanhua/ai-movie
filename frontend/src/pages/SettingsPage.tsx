@@ -122,17 +122,17 @@ export function SettingsPage() {
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">设置</h1>
-          <p className="mt-1 text-sm text-muted-foreground">管理 AI 服务配置</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">设置</h1>
+          <p className="mt-2 text-sm text-muted-foreground font-light">管理 AI 服务配置</p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} className="rounded-full px-6 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]">
           <Plus className="mr-2 h-4 w-4" />
           添加配置
         </Button>
       </div>
 
       <div className="max-w-3xl">
-        <h2 className="mb-4 text-lg font-semibold">AI 服务配置</h2>
+        <h2 className="mb-6 text-lg font-medium text-white/90 tracking-tight">AI 服务配置</h2>
 
         {isLoading ? (
           <div className="space-y-3">
@@ -141,34 +141,34 @@ export function SettingsPage() {
             ))}
           </div>
         ) : configs.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-border py-10 text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="rounded-3xl border border-white/10 border-dashed bg-[#111111]/30 py-12 text-center">
+            <p className="text-sm text-muted-foreground font-light">
               还没有 AI 配置，添加你的 API 密钥以开始使用
             </p>
-            <Button className="mt-3" size="sm" onClick={openCreate}>
+            <Button className="mt-4 rounded-full" size="sm" onClick={openCreate}>
               添加第一个配置
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {configs.map((config) => (
               <div
                 key={config.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4"
+                className="flex items-center justify-between rounded-2xl border border-white/5 bg-[#111111]/80 p-5 transition-all duration-300 hover:border-white/20 hover:bg-[#151515] shadow-lg shadow-black/20"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {config.is_default && (
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]" />
                   )}
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{config.name}</span>
-                      <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold tracking-tight text-white/90">{config.name}</span>
+                      <span className="rounded-full bg-white/10 border border-white/10 px-2.5 py-0.5 text-[10px] uppercase font-medium tracking-wider text-white/70">
                         {config.provider}
                       </span>
                     </div>
                     {config.model && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground font-light">
                         模型: {config.model}
                       </p>
                     )}
@@ -177,7 +177,7 @@ export function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openEdit(config)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+                    className="rounded-full p-2 text-muted-foreground hover:bg-white/10 hover:text-white transition-colors"
                   >
                     <Edit2 className="h-4 w-4" />
                   </button>
@@ -186,7 +186,7 @@ export function SettingsPage() {
                       if (confirm('确定删除此配置？'))
                         deleteMut.mutate(config.id)
                     }}
-                    className="rounded-md p-1.5 text-muted-foreground hover:text-destructive"
+                    className="rounded-full p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -213,14 +213,14 @@ export function SettingsPage() {
           />
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium">服务提供商</label>
+            <label className="block text-xs font-medium text-white/70 uppercase tracking-widest pl-1">服务提供商</label>
             <select
               value={form.provider}
               onChange={(e) => setForm({ ...form, provider: e.target.value })}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-white/10 bg-[#111111]/80 px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 transition-all appearance-none"
             >
               {PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>
+                <option key={p.value} value={p.value} className="bg-[#111] text-white">
                   {p.label}
                 </option>
               ))}
@@ -253,12 +253,12 @@ export function SettingsPage() {
             onChange={(e) => setForm({ ...form, model: e.target.value })}
           />
 
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm font-light text-white/80 cursor-pointer pl-1 mt-2">
             <input
               type="checkbox"
               checked={form.is_default}
               onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
-              className="rounded border-input"
+              className="rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-offset-[#111111] w-4 h-4 transition-all flex-shrink-0 cursor-pointer"
             />
             设为默认配置
           </label>

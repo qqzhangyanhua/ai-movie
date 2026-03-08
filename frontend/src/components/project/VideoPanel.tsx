@@ -146,12 +146,12 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
       </div>
 
       {scripts.length === 0 && (
-        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-light text-amber-400">
           请先在「智能剧本」标签页创建剧本，再生成视频
         </div>
       )}
       {aiConfigs.length === 0 && (
-        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-light text-amber-400">
           请先在「设置」页面添加 AI 服务配置
         </div>
       )}
@@ -163,9 +163,9 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
           ))}
         </div>
       ) : tasks.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border-2 border-dashed border-border py-10">
-          <Play className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">还没有生成过视频</p>
+        <div className="flex flex-col items-center rounded-3xl border border-white/10 border-dashed bg-[#111111]/30 py-12">
+          <Play className="mb-4 h-10 w-10 text-white/20" />
+          <p className="text-sm text-muted-foreground font-light">还没有生成过视频</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -175,7 +175,7 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
             return (
               <div
                 key={task.id}
-                className="rounded-lg border border-border p-4"
+                className="rounded-2xl border border-white/5 bg-[#111111]/80 p-5 transition-all duration-300 shadow-lg shadow-black/20"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
                   </div>
                 </div>
                 {task.status === 'processing' && task.progress != null && (
-                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                     <div
                       className="h-full rounded-full bg-primary transition-all"
                       style={{ width: `${task.progress}%` }}
@@ -254,15 +254,15 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
       >
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium">选择剧本</label>
+            <label className="block text-xs font-medium text-white/70 uppercase tracking-widest pl-1">选择剧本</label>
             <select
               value={selectedScript}
               onChange={(e) => setSelectedScript(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-white/10 bg-[#111111]/80 px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 transition-all appearance-none"
             >
-              <option value="">请选择...</option>
+              <option value="" className="bg-[#111] text-white">请选择...</option>
               {scripts.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} className="bg-[#111] text-white">
                   {s.title}
                 </option>
               ))}
@@ -270,15 +270,15 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium">AI 配置</label>
+            <label className="block text-xs font-medium text-white/70 uppercase tracking-widest pl-1">AI 配置</label>
             <select
               value={selectedConfig}
               onChange={(e) => setSelectedConfig(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-white/10 bg-[#111111]/80 px-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 transition-all appearance-none"
             >
-              <option value="">请选择...</option>
+              <option value="" className="bg-[#111] text-white">请选择...</option>
               {aiConfigs.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className="bg-[#111] text-white">
                   {c.name} ({c.provider})
                 </option>
               ))}

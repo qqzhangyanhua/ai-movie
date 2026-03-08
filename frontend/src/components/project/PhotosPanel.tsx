@@ -55,11 +55,10 @@ export function PhotosPanel({ projectId }: PhotosPanelProps) {
 
       <div
         {...getRootProps()}
-        className={`mb-6 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          isDragActive
-            ? 'border-primary bg-primary/5'
-            : 'border-border hover:border-primary/50'
-        }`}
+        className={`mb-6 cursor-pointer rounded-3xl border border-dashed p-8 text-center transition-all duration-300 ${isDragActive
+            ? 'border-primary bg-primary/10 shadow-[0_0_30px_rgba(212,175,55,0.15)]'
+            : 'border-white/10 bg-[#111111]/30 hover:border-white/30 hover:bg-[#111111]/50'
+          }`}
       >
         <input {...getInputProps()} />
         <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -80,14 +79,14 @@ export function PhotosPanel({ projectId }: PhotosPanelProps) {
       {isLoading ? (
         <div className="py-10 text-center text-muted-foreground">加载中...</div>
       ) : photos.length === 0 ? (
-        <div className="flex flex-col items-center py-10">
-          <ImageIcon className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">还没有上传照片</p>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 border-dashed bg-[#111111]/30 py-16">
+          <ImageIcon className="mb-4 h-10 w-10 text-white/20" />
+          <p className="text-sm text-muted-foreground font-light">还没有上传照片</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {photos.map((photo) => (
-            <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-border">
+            <div key={photo.id} className="group relative overflow-hidden rounded-2xl border border-white/10 shadow-lg">
               <img
                 src={`/uploads/${photo.thumbnail_path ?? photo.file_path}`}
                 alt=""

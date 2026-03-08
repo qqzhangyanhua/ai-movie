@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { loginApi, getMeApi } from '@/api/auth'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -55,60 +57,64 @@ export function LoginPage() {
       </div>
 
       {/* Main Card */}
-      <div className="relative z-10 w-full max-w-[400px] rounded-xl border border-white/[0.08] bg-[#111111] p-10 shadow-2xl">
+      <div className="relative z-10 w-full max-w-[400px] rounded-2xl border border-white/[0.08] bg-[#111111]/80 backdrop-blur-xl p-10 shadow-2xl">
+        {/* Subtle top glow */}
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-[#222]">
-            <Sparkles className="h-6 w-6 text-[#ededed]" />
+          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-white/5 border border-white/10 shadow-inner">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-xl font-medium tracking-tight text-white mb-2">登录您的账户</h1>
-          <p className="text-sm text-[#888]">
+          <h1 className="text-2xl font-light tracking-tight text-white mb-2">登录您的账户</h1>
+          <p className="text-sm text-muted-foreground/60 font-light">
             请输入您的邮箱和密码进行验证
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              id="email"
-              type="email"
-              placeholder="您的邮箱地址"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg bg-[#1a1a1a] border border-transparent px-4 py-3.5 text-sm text-white placeholder-[#555] transition-colors focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
-            />
-          </div>
-          <div>
-            <input
-              id="password"
-              type="password"
-              placeholder="输入密码"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg bg-[#1a1a1a] border border-transparent px-4 py-3.5 text-sm text-white placeholder-[#555] transition-colors focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            id="email"
+            type="email"
+            placeholder="您的邮箱地址"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            label="邮箱"
+          />
+          <Input
+            id="password"
+            type="password"
+            placeholder="输入密码"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            label="密码"
+          />
 
           {error && (
-            <p className="text-xs text-red-400 pt-1 text-center">{error}</p>
+            <p className="text-xs text-red-500 font-medium pt-1 text-center">{error}</p>
           )}
 
-          <div className="pt-2 flex flex-col items-center space-y-4">
-            <button
+          <div className="pt-4 flex flex-col items-center space-y-5">
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full bg-[#444] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#555] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full"
             >
-              {loading ? '登录中...' : '继续'}
-            </button>
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  登录中
+                </div>
+              ) : '继续'}
+            </Button>
 
-            <p className="text-xs text-[#666] text-center max-w-[280px]">
-              还没收到验证码？或者没有账户？ <Link to="/register" className="text-white hover:underline transition-colors">去注册</Link>
+            <p className="text-xs text-muted-foreground/60 text-center max-w-[280px] font-light">
+              还没收到验证码？或者没有账户？ <Link to="/register" className="text-white hover:text-primary transition-colors font-medium">去注册</Link>
             </p>
 
-            <Link to="/" className="text-xs text-[#666] font-medium hover:text-[#999] transition-colors mt-2">
-              返回
+            <Link to="/" className="text-[11px] text-muted-foreground/40 font-medium hover:text-white transition-colors mt-2 uppercase tracking-wider">
+              返回首页
             </Link>
           </div>
         </form>

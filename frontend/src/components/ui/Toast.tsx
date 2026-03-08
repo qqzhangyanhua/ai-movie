@@ -52,12 +52,6 @@ const iconMap: Record<ToastType, typeof CheckCircle> = {
     info: Info,
 }
 
-const colorMap: Record<ToastType, string> = {
-    success: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    error: 'text-red-400 bg-red-500/10 border-red-500/20',
-    info: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-}
-
 // ─── Single Toast Item ─────────────────────────
 
 function ToastItem({ toast: t }: { toast: Toast }) {
@@ -77,15 +71,24 @@ function ToastItem({ toast: t }: { toast: Toast }) {
             exit={{ opacity: 0, x: 80, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className={cn(
-                'pointer-events-auto flex items-center gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-xl',
-                colorMap[t.type]
+                'pointer-events-auto flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl shadow-black/50 backdrop-blur-xl',
+                t.type === 'success' && 'border-emerald-500/20 bg-[#0A0A0A]/90 text-emerald-400',
+                t.type === 'error' && 'border-red-500/20 bg-[#0A0A0A]/90 text-red-400',
+                t.type === 'info' && 'border-white/10 bg-[#0A0A0A]/90 text-white/90'
             )}
         >
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="text-sm font-medium text-foreground">{t.message}</span>
+            <div className={cn(
+                "flex items-center justify-center rounded-full p-1",
+                t.type === 'success' && 'bg-emerald-500/10',
+                t.type === 'error' && 'bg-red-500/10',
+                t.type === 'info' && 'bg-white/5'
+            )}>
+                <Icon className="h-4 w-4 shrink-0" />
+            </div>
+            <span className="text-sm font-light tracking-wide text-white">{t.message}</span>
             <button
                 onClick={() => removeToast(t.id)}
-                className="ml-2 shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors"
+                className="ml-4 shrink-0 rounded-full p-1.5 text-white/30 hover:bg-white/10 hover:text-white transition-all duration-200"
             >
                 <X className="h-3.5 w-3.5" />
             </button>

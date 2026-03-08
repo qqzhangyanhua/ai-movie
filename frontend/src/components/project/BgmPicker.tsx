@@ -140,10 +140,10 @@ export function BgmPicker({
                         key={cat.value}
                         onClick={() => setCategory(cat.value)}
                         className={cn(
-                            'px-3 py-1.5 text-xs rounded-full transition-colors',
+                            'px-4 py-1.5 text-xs font-medium rounded-full transition-all duration-300',
                             category === cat.value
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                                ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.15)]'
+                                : 'bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white'
                         )}
                     >
                         {cat.label}
@@ -157,8 +157,8 @@ export function BgmPicker({
                         加载中...
                     </div>
                 ) : filteredList.length === 0 ? (
-                    <div className="col-span-full py-8 text-center border rounded-lg border-dashed">
-                        <p className="text-sm text-muted-foreground">暂无相关背景音乐</p>
+                    <div className="col-span-full py-12 text-center rounded-3xl border border-white/10 border-dashed bg-[#111111]/30">
+                        <p className="text-sm text-muted-foreground font-light">暂无相关背景音乐</p>
                     </div>
                 ) : (
                     filteredList.map((bgm) => (
@@ -166,10 +166,10 @@ export function BgmPicker({
                             key={bgm.id}
                             onClick={() => onSelect(selectedBgmId === bgm.id ? null : bgm.id)}
                             className={cn(
-                                'group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer',
+                                'group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer shadow-sm',
                                 selectedBgmId === bgm.id
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                    ? 'border-primary bg-primary/10 shadow-[0_0_20px_rgba(212,175,55,0.1)]'
+                                    : 'border-white/5 bg-[#111111]/80 hover:border-white/20 hover:bg-[#151515]'
                             )}
                         >
                             <div className="flex items-center gap-3 min-w-0">
@@ -179,7 +179,7 @@ export function BgmPicker({
                                         'h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-colors',
                                         playingId === bgm.id
                                             ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                                            : 'bg-secondary text-foreground hover:bg-primary hover:text-primary-foreground'
+                                            : 'bg-white/10 text-white group-hover:bg-primary group-hover:text-primary-foreground'
                                     )}
                                 >
                                     {playingId === bgm.id ? (
@@ -208,15 +208,15 @@ export function BgmPicker({
                                                 deleteMut.mutate(bgm.id)
                                             }
                                         }}
-                                        className="p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all rounded"
+                                        className="p-2 text-white/30 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all rounded-full"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                                 {selectedBgmId === bgm.id ? (
-                                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                                    <CheckCircle2 className="h-5 w-5 text-primary drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]" />
                                 ) : (
-                                    <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 group-hover:border-primary/50 transition-colors" />
+                                    <div className="h-5 w-5 rounded-full border border-white/20 group-hover:border-white/40 transition-colors" />
                                 )}
                             </div>
                         </div>
