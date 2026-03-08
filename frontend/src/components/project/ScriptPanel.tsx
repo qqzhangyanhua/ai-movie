@@ -86,6 +86,7 @@ export function ScriptPanel({ projectId }: ScriptPanelProps) {
       <TimelineEditor
         initialTitle={editingScript?.title ?? '新剧本'}
         initialScenes={editingScript?.content?.scenes ?? [emptyScene(0)]}
+        initialBgmId={editingScript?.content?.metadata?.bgm ?? null}
         photos={photos}
         onSave={handleSave}
         onBack={() => {

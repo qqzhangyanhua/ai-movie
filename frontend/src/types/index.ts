@@ -10,9 +10,11 @@ export interface Project {
   user_id: string
   name: string
   description: string | null
+  latest_video_status?: 'pending' | 'processing' | 'completed' | 'failed' | null
   created_at: string
   updated_at: string
 }
+
 
 export interface Photo {
   id: string
@@ -53,6 +55,9 @@ export interface Script {
   is_template: boolean
   is_public: boolean
   source_type: 'system' | 'user' | 'ai_generated'
+  category: string | null
+  tags: string[] | null
+  clone_count: number
   created_at: string
 }
 
@@ -77,6 +82,17 @@ export interface UserAiConfig {
   base_url: string | null
   model: string | null
   is_default: boolean
+  created_at: string
+}
+
+export interface BgmTrack {
+  id: string
+  name: string
+  file_path: string
+  duration: number
+  category: string | null
+  is_system: boolean
+  user_id: string | null
   created_at: string
 }
 

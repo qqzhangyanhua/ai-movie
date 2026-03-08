@@ -25,3 +25,9 @@ export async function getVideoTasks(projectId: string): Promise<VideoTask[]> {
 export async function cancelVideoTask(id: string): Promise<void> {
   await apiClient.post(`/video-tasks/${id}/cancel`)
 }
+
+export async function retryVideoTask(id: string): Promise<VideoTask> {
+  const { data } = await apiClient.post<VideoTask>(`/video-tasks/${id}/retry`)
+  return data
+}
+

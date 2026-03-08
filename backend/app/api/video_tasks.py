@@ -116,3 +116,32 @@ async def cancel_video_task(
     task.status = "failed"
     task.error_message = "用户取消"
     return {"status": "cancelled"}
+
+
+@router.post("/{task_id}/retry", response_model=VideoTaskResponse, status_code=status.HTTP_200_OK)
+async def retry_video_task(
+    task_id: UUID, current_user: CurrentUser, db: DbSession
+) -> VideoTask:
+    result = await db.execute(
+        select(VideoTask)
+        .join(Project)
+        .where(VideoTask.id == task_id, Project.user_id == current_user.id)
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status != "failed":
+        raise HTTPException(status_code=400, detail="只有失败的任务才能重试")
+
+    task.status = "pending"
+    task.error_message = None
+    task.progress = 0
+    task.result_video_path = None
+    task.completed_at = None
+    await db.flush()
+    await db.refresh(task)
+
+    from app.tasks.video import generate_video
+
+    generate_video.delay(str(task.id))
+    return task

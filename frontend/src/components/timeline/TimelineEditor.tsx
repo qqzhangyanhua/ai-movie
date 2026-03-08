@@ -20,11 +20,13 @@ import { SceneDetailPanel } from './SceneDetailPanel'
 import { PhotoPool } from './PhotoPool'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { BgmPicker } from '@/components/project/BgmPicker'
 import type { Scene, ScriptContent, Photo } from '@/types'
 
 interface TimelineEditorProps {
   initialTitle: string
   initialScenes: Scene[]
+  initialBgmId?: string | null
   photos: Photo[]
   onSave: (title: string, content: ScriptContent) => void
   onBack: () => void
@@ -34,6 +36,7 @@ interface TimelineEditorProps {
 export function TimelineEditor({
   initialTitle,
   initialScenes,
+  initialBgmId,
   photos,
   onSave,
   onBack,
@@ -41,6 +44,7 @@ export function TimelineEditor({
 }: TimelineEditorProps) {
   const [title, setTitle] = useState(initialTitle)
   const [scenes, setScenes] = useState<Scene[]>(initialScenes)
+  const [selectedBgmId, setSelectedBgmId] = useState<string | null>(initialBgmId ?? null)
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
 
   const sensors = useSensors(
@@ -92,7 +96,7 @@ export function TimelineEditor({
   const handleSave = () => {
     const content: ScriptContent = {
       scenes: scenes.map((s, i) => ({ ...s, order: i })),
-      metadata: { total_duration: totalDuration, bgm: null },
+      metadata: { total_duration: totalDuration, bgm: selectedBgmId },
     }
     onSave(title, content)
   }
@@ -172,19 +176,24 @@ export function TimelineEditor({
             </div>
           </div>
 
-          {/* Scene detail */}
-          <div className="flex-1 overflow-y-auto">
-            {selectedScene ? (
-              <SceneDetailPanel
-                scene={selectedScene}
-                photos={photos}
-                onChange={(updates) => updateScene(selectedScene.id, updates)}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                选择一个场景进行编辑，或从左侧照片池拖入新照片
-              </div>
-            )}
+          {/* Scene detail and BGM */}
+          <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-y-auto">
+              {selectedScene ? (
+                <SceneDetailPanel
+                  scene={selectedScene}
+                  photos={photos}
+                  onChange={(updates) => updateScene(selectedScene.id, updates)}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  选择一个场景进行编辑，或从左侧照片池拖入新照片
+                </div>
+              )}
+            </div>
+            <div className="w-[320px] bg-muted/10 border-l border-border p-4 overflow-y-auto shrink-0 hidden md:block">
+              <BgmPicker selectedBgmId={selectedBgmId} onSelect={setSelectedBgmId} />
+            </div>
           </div>
         </div>
       </div>

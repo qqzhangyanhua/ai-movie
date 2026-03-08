@@ -35,3 +35,15 @@ export async function refreshTokenApi(refreshToken: string): Promise<AuthTokens>
   })
   return data
 }
+
+export async function updateProfileApi(payload: { username?: string }): Promise<User> {
+  const { data } = await apiClient.put<User>('/auth/me', payload)
+  return data
+}
+
+export async function changePasswordApi(oldPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/change-password', {
+    old_password: oldPassword,
+    new_password: newPassword,
+  })
+}

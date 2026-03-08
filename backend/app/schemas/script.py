@@ -28,6 +28,9 @@ class ScriptResponse(BaseModel):
     is_template: bool
     is_public: bool
     source_type: str
+    category: str | None = None
+    tags: list[str] | None = None
+    clone_count: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}

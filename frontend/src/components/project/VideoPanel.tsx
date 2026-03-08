@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, Download, XCircle, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { getVideoTasks, createVideoTask, getVideoTask, cancelVideoTask } from '@/api/video-tasks'
+import { Play, Download, XCircle, Loader2, CheckCircle2, AlertCircle, Eye, RotateCcw } from 'lucide-react'
+import { getVideoTasks, createVideoTask, getVideoTask, cancelVideoTask, retryVideoTask } from '@/api/video-tasks'
 import { getScripts } from '@/api/scripts'
+import { getPhotos } from '@/api/photos'
 import { getAiConfigs } from '@/api/ai-configs'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
+import { toast } from '@/components/ui/Toast'
+import { SkeletonListItem } from '@/components/ui/Skeleton'
+import { ScenePreview } from './ScenePreview'
 import type { VideoTask } from '@/types'
 
 interface VideoPanelProps {
@@ -28,6 +32,7 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
   const [selectedScript, setSelectedScript] = useState('')
   const [selectedConfig, setSelectedConfig] = useState('')
   const [pollingTaskId, setPollingTaskId] = useState<string | null>(null)
+  const [previewScriptId, setPreviewScriptId] = useState<string | null>(null)
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['video-tasks', projectId],
@@ -42,6 +47,11 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
   const { data: aiConfigs = [] } = useQuery({
     queryKey: ['ai-configs'],
     queryFn: getAiConfigs,
+  })
+
+  const { data: photos = [] } = useQuery({
+    queryKey: ['photos', projectId],
+    queryFn: () => getPhotos(projectId),
   })
 
   useQuery({
@@ -65,7 +75,9 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['video-tasks', projectId] })
       setPollingTaskId(task.id)
       setShowGenDialog(false)
+      toast.success('视频生成任务已提交')
     },
+    onError: () => toast.error('提交视频任务失败'),
   })
 
   const cancelMut = useMutation({
@@ -74,6 +86,16 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['video-tasks', projectId] })
       setPollingTaskId(null)
     },
+  })
+
+  const retryMut = useMutation({
+    mutationFn: retryVideoTask,
+    onSuccess: (task) => {
+      queryClient.invalidateQueries({ queryKey: ['video-tasks', projectId] })
+      setPollingTaskId(task.id)
+      toast.success('视频任务已重新提交')
+    },
+    onError: () => toast.error('重试失败，请稍后再试'),
   })
 
   useEffect(() => {
@@ -98,29 +120,48 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-lg font-semibold">视频生成</h2>
-        <Button
-          size="sm"
-          onClick={() => setShowGenDialog(true)}
-          disabled={scripts.length === 0 || aiConfigs.length === 0}
-        >
-          <Play className="mr-1.5 h-3.5 w-3.5" />
-          生成视频
-        </Button>
+        <div className="flex gap-2">
+          {scripts.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const firstScript = scripts[0]
+                if (firstScript) setPreviewScriptId(firstScript.id)
+              }}
+            >
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+              预览
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => setShowGenDialog(true)}
+            disabled={scripts.length === 0 || aiConfigs.length === 0}
+          >
+            <Play className="mr-1.5 h-3.5 w-3.5" />
+            生成视频
+          </Button>
+        </div>
       </div>
 
       {scripts.length === 0 && (
-        <div className="mb-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-          请先创建剧本再生成视频
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          请先在「智能剧本」标签页创建剧本，再生成视频
         </div>
       )}
       {aiConfigs.length === 0 && (
-        <div className="mb-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-          请先在设置中添加 AI 服务配置
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          请先在「设置」页面添加 AI 服务配置
         </div>
       )}
 
       {isLoading ? (
-        <div className="py-10 text-center text-muted-foreground">加载中...</div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonListItem key={i} />
+          ))}
+        </div>
       ) : tasks.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl border-2 border-dashed border-border py-10">
           <Play className="mb-3 h-10 w-10 text-muted-foreground" />
@@ -162,6 +203,18 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
                           <XCircle className="h-4 w-4" />
                         </Button>
                       </>
+                    )}
+                    {task.status === 'failed' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => retryMut.mutate(task.id)}
+                        disabled={retryMut.isPending}
+                        className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                      >
+                        <RotateCcw className={`h-4 w-4 mr-1 ${retryMut.isPending ? 'animate-spin' : ''}`} />
+                        重试
+                      </Button>
                     )}
                     {task.status === 'completed' && task.result_video_path && (
                       <a
@@ -247,6 +300,19 @@ export function VideoPanel({ projectId }: VideoPanelProps) {
           </div>
         </div>
       </Dialog>
+
+      {/* Scene Preview */}
+      {previewScriptId && (() => {
+        const previewScript = scripts.find((s) => s.id === previewScriptId)
+        const previewScenes = previewScript?.content?.scenes ?? []
+        return previewScenes.length > 0 ? (
+          <ScenePreview
+            scenes={previewScenes}
+            photos={photos}
+            onClose={() => setPreviewScriptId(null)}
+          />
+        ) : null
+      })()}
     </div>
   )
 }

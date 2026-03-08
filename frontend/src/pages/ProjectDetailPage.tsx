@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Image, FileText, Video, Settings2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Image, FileText, Video, Settings2, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { getProject } from '@/api/projects'
+import { getProject, updateProject, deleteProject } from '@/api/projects'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Dialog } from '@/components/ui/Dialog'
 import { PhotosPanel } from '@/components/project/PhotosPanel'
 import { ScriptPanel } from '@/components/project/ScriptPanel'
 import { VideoPanel } from '@/components/project/VideoPanel'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { toast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 
 type TabKey = 'photos' | 'script' | 'video'
@@ -21,7 +25,11 @@ const tabs: { key: TabKey; label: string; icon: typeof Image }[] = [
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>('photos')
+  const [showSettings, setShowSettings] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editDesc, setEditDesc] = useState('')
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
@@ -29,12 +37,69 @@ export function ProjectDetailPage() {
     enabled: !!id,
   })
 
+  const updateMut = useMutation({
+    mutationFn: (payload: { name?: string; description?: string }) =>
+      updateProject(id!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', id] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      setShowSettings(false)
+      toast.success('项目信息已更新')
+    },
+    onError: () => toast.error('更新失败，请重试'),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteProject(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      toast.success('项目已删除')
+      navigate('/projects')
+    },
+    onError: () => toast.error('删除失败，请重试'),
+  })
+
+  const openSettings = () => {
+    setEditName(project?.name ?? '')
+    setEditDesc(project?.description ?? '')
+    setShowSettings(true)
+  }
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editName.trim()) return
+    updateMut.mutate({ name: editName, description: editDesc || undefined })
+  }
+
+  const handleDelete = () => {
+    if (confirm(`确定要永久删除项目「${project?.name}」吗？此操作不可撤销。`)) {
+      deleteMut.mutate()
+    }
+  }
+
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-          <p className="font-medium animate-pulse">加载项目数据...</p>
+      <div className="flex h-full flex-col bg-background/50">
+        <header className="flex items-center gap-5 border-b border-white/5 bg-card/40 px-8 py-5">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-4 w-1/5" />
+          </div>
+          <Skeleton className="h-9 w-24 rounded-lg" />
+        </header>
+        <div className="flex border-b border-white/5 px-8 py-4 gap-4">
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-24 rounded-lg" />
+        </div>
+        <div className="flex-1 p-8 space-y-4">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <div className="grid grid-cols-3 gap-4">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+          </div>
         </div>
       </div>
     )
@@ -71,7 +136,12 @@ export function ProjectDetailPage() {
             <p className="text-sm text-muted-foreground truncate mt-1.5 font-medium">{project.description}</p>
           )}
         </div>
-        <Button variant="outline" size="sm" className="gap-2 glass-panel border-white/10 hover:border-white/20">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 glass-panel border-white/10 hover:border-white/20"
+          onClick={openSettings}
+        >
           <Settings2 className="h-4 w-4" />
           项目设置
         </Button>
@@ -121,6 +191,50 @@ export function ProjectDetailPage() {
           {activeTab === 'video' && <VideoPanel projectId={project.id} />}
         </motion.div>
       </div>
+
+      {/* Project Settings Dialog */}
+      <Dialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        title="项目设置"
+      >
+        <form onSubmit={handleSave} className="space-y-5 mt-2">
+          <Input
+            id="settings-name"
+            label="项目名称"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
+            autoFocus
+          />
+          <Input
+            id="settings-desc"
+            label="故事梗概（可选）"
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+          />
+          <div className="flex justify-between gap-3 pt-4 border-t border-white/10 mt-6">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={deleteMut.isPending}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleteMut.isPending ? '删除中...' : '删除项目'}
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="ghost" onClick={() => setShowSettings(false)}>
+                取消
+              </Button>
+              <Button type="submit" disabled={updateMut.isPending || !editName.trim()}>
+                {updateMut.isPending ? '保存中...' : '保存更改'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Dialog>
     </div>
   )
 }

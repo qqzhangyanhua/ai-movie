@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Film, Trash2, Calendar, Sparkles, Image as ImageIcon } from 'lucide-react'
+import { Plus, Film, Trash2, Calendar, Sparkles, CheckCircle2, Loader2, AlertCircle, FileText } from 'lucide-react'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { getProjects, createProject, deleteProject } from '@/api/projects'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Dialog } from '@/components/ui/Dialog'
+import { toast } from '@/components/ui/Toast'
+import { SkeletonProjectCard } from '@/components/ui/Skeleton'
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -42,18 +44,48 @@ export function ProjectsPage() {
       setShowCreate(false)
       setNewName('')
       setNewDesc('')
+      toast.success('项目创建成功')
     },
+    onError: () => toast.error('创建项目失败，请重试'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteProject,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      toast.success('项目已删除')
+    },
+    onError: () => toast.error('删除项目失败'),
   })
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim()) return
     createMutation.mutate({ name: newName, description: newDesc || undefined })
+  }
+
+  type VideoStatus = 'pending' | 'processing' | 'completed' | 'failed' | null | undefined
+  function StatusBadge({ status }: { status: VideoStatus }) {
+    if (status === 'completed') return (
+      <span className="flex items-center gap-1 rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5 text-xs font-medium text-green-400">
+        <CheckCircle2 className="h-3 w-3" />已完成
+      </span>
+    )
+    if (status === 'processing' || status === 'pending') return (
+      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
+        <Loader2 className="h-3 w-3 animate-spin" />生成中
+      </span>
+    )
+    if (status === 'failed') return (
+      <span className="flex items-center gap-1 rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
+        <AlertCircle className="h-3 w-3" />失败
+      </span>
+    )
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <FileText className="h-3 w-3" />草稿
+      </span>
+    )
   }
 
   return (
@@ -74,11 +106,10 @@ export function ProjectsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-[50vh] items-center justify-center text-muted-foreground">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-            <p className="font-medium animate-pulse">加载项目库中...</p>
-          </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonProjectCard key={i} />
+          ))}
         </div>
       ) : projects.length === 0 ? (
         <motion.div
@@ -122,16 +153,19 @@ export function ProjectsPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-inner border border-primary/20 group-hover:scale-110 transition-transform duration-300">
                       <Film className="h-6 w-6" />
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (confirm('确定要删除此项目吗？'))
-                          deleteMutation.mutate(project.id)
-                      }}
-                      className="rounded-full p-2 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-all duration-200 group-hover:opacity-100 backdrop-blur-md"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={project.latest_video_status} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (confirm('确定要删除此项目吗？'))
+                            deleteMutation.mutate(project.id)
+                        }}
+                        className="rounded-full p-2 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-all duration-200 group-hover:opacity-100 backdrop-blur-md"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <h3 className="mb-2 text-xl font-bold truncate tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/90 group-hover:from-primary group-hover:to-indigo-300 transition-all">{project.name}</h3>
@@ -151,8 +185,7 @@ export function ProjectsPage() {
                       <Calendar className="h-3.5 w-3.5" />
                       {new Date(project.updated_at).toLocaleDateString('zh-CN')}
                     </div>
-                    <div className="flex items-center gap-1.5 ml-auto">
-                      <ImageIcon className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-1.5 ml-auto text-primary/60">
                       打开项目 &rarr;
                     </div>
                   </div>

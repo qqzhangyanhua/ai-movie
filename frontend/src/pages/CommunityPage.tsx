@@ -1,21 +1,38 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, BookTemplate, Clock, User, Copy } from 'lucide-react'
+import { Search, BookTemplate, Clock, User, Copy, TrendingUp, ArrowDownWideNarrow } from 'lucide-react'
 import { getCommunityTemplates, cloneTemplate } from '@/api/scripts'
 import { getProjects } from '@/api/projects'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
+import { toast } from '@/components/ui/Toast'
+import { SkeletonTemplateCard } from '@/components/ui/Skeleton'
 import type { Script } from '@/types'
+
+const CATEGORIES = [
+  { value: '', label: '全部' },
+  { value: 'travel', label: '旅行' },
+  { value: 'food', label: '美食' },
+  { value: 'business', label: '商业' },
+  { value: 'education', label: '教育' },
+  { value: 'other', label: '其他' },
+]
 
 export function CommunityPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [sortBy, setSortBy] = useState<'newest' | 'popular'>('newest')
   const [cloneTarget, setCloneTarget] = useState<Script | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState('')
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['community-templates', search],
-    queryFn: () => getCommunityTemplates({ search: search || undefined }),
+    queryKey: ['community-templates', search, category, sortBy],
+    queryFn: () => getCommunityTemplates({
+      search: search || undefined,
+      category: category || undefined,
+      sort_by: sortBy,
+    }),
   })
 
   const { data: projects = [] } = useQuery({
@@ -30,7 +47,9 @@ export function CommunityPage() {
       queryClient.invalidateQueries({ queryKey: ['scripts'] })
       setCloneTarget(null)
       setSelectedProjectId('')
+      toast.success('模板已成功导入到项目')
     },
+    onError: () => toast.error('导入模板失败'),
   })
 
   const handleClone = () => {
@@ -50,6 +69,23 @@ export function CommunityPage() {
         </p>
       </div>
 
+      {/* Category tabs */}
+      <div className="mb-5 flex items-center gap-2 overflow-x-auto pb-1">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.value}
+            onClick={() => setCategory(cat.value)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${category === cat.value
+              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+              : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
+              }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search + Sort */}
       <div className="mb-6 flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -61,10 +97,32 @@ export function CommunityPage() {
             className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
         </div>
+        <div className="flex items-center gap-1 rounded-lg bg-white/5 p-1">
+          <button
+            onClick={() => setSortBy('newest')}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${sortBy === 'newest' ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+            最新
+          </button>
+          <button
+            onClick={() => setSortBy('popular')}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${sortBy === 'popular' ? 'bg-white/10 text-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            最热
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center text-muted-foreground">加载中...</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonTemplateCard key={i} />
+          ))}
+        </div>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-border py-20">
           <BookTemplate className="mb-4 h-12 w-12 text-muted-foreground" />
@@ -154,17 +212,25 @@ function TemplateCard({
 }) {
   const scenesCount = template.content?.scenes?.length ?? 0
   const totalDuration = template.content?.metadata?.total_duration ?? 0
+  const categoryLabel = CATEGORIES.find((c) => c.value === template.category)?.label
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 transition-shadow hover:shadow-lg">
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{template.title}</h3>
-          {template.source_type === 'system' && (
-            <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              官方模板
-            </span>
-          )}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {template.source_type === 'system' && (
+              <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                官方模板
+              </span>
+            )}
+            {categoryLabel && (
+              <span className="inline-block rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+                {categoryLabel}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -195,6 +261,10 @@ function TemplateCard({
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {totalDuration.toFixed(0)}s
+          </span>
+          <span className="flex items-center gap-1">
+            <Copy className="h-3 w-3" />
+            {template.clone_count ?? 0}
           </span>
           <span className="flex items-center gap-1">
             <User className="h-3 w-3" />

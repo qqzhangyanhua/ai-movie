@@ -5,6 +5,8 @@ import { getAiConfigs, createAiConfig, updateAiConfig, deleteAiConfig } from '@/
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Dialog } from '@/components/ui/Dialog'
+import { toast } from '@/components/ui/Toast'
+import { SkeletonListItem } from '@/components/ui/Skeleton'
 import type { UserAiConfig } from '@/types'
 
 const PROVIDERS = [
@@ -50,7 +52,9 @@ export function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-configs'] })
       closeDialog()
+      toast.success('AI 配置创建成功')
     },
+    onError: () => toast.error('创建配置失败'),
   })
 
   const updateMut = useMutation({
@@ -59,12 +63,18 @@ export function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-configs'] })
       closeDialog()
+      toast.success('配置已更新')
     },
+    onError: () => toast.error('更新配置失败'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteAiConfig,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ai-configs'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-configs'] })
+      toast.success('配置已删除')
+    },
+    onError: () => toast.error('删除配置失败'),
   })
 
   const openCreate = () => {
@@ -125,7 +135,11 @@ export function SettingsPage() {
         <h2 className="mb-4 text-lg font-semibold">AI 服务配置</h2>
 
         {isLoading ? (
-          <div className="py-10 text-center text-muted-foreground">加载中...</div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonListItem key={i} />
+            ))}
+          </div>
         ) : configs.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-border py-10 text-center">
             <p className="text-sm text-muted-foreground">

@@ -9,7 +9,9 @@ import { ProjectDetailPage } from '@/pages/ProjectDetailPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { CommunityPage } from '@/pages/CommunityPage'
 import { LandingPage } from '@/pages/LandingPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { AuthModal } from '@/components/auth/AuthModal'
+import { ToastContainer } from '@/components/ui/Toast'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,9 +70,11 @@ export default function App() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>
         {isAuthModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} />}
+        <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>
   )

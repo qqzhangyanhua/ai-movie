@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, ForeignKey, Boolean, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, Text, Integer
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +24,9 @@ class Script(Base):
     is_template: Mapped[bool] = mapped_column(Boolean, default=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     source_type: Mapped[str] = mapped_column(String(50), default="user")  # system / user / ai_generated
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)  # travel / food / business / education / other
+    tags: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)), nullable=True)
+    clone_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -31,3 +34,4 @@ class Script(Base):
     project: Mapped["Project | None"] = relationship(back_populates="scripts")  # type: ignore[name-defined]  # noqa: F821
     user: Mapped["User"] = relationship(back_populates="scripts")  # type: ignore[name-defined]  # noqa: F821
     video_tasks: Mapped[list["VideoTask"]] = relationship(back_populates="script", cascade="all, delete-orphan")  # type: ignore[name-defined]  # noqa: F821
+

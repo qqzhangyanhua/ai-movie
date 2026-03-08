@@ -59,11 +59,19 @@ async def list_templates(
 async def list_community_templates(
     db: DbSession,
     search: str | None = Query(None),
+    category: str | None = Query(None),
+    sort_by: str | None = Query(None),  # newest / popular
 ) -> list[Script]:
     query = select(Script).where(Script.is_public.is_(True), Script.is_template.is_(True))
     if search:
         query = query.where(Script.title.ilike(f"%{search}%"))
-    result = await db.execute(query.order_by(Script.created_at.desc()))
+    if category:
+        query = query.where(Script.category == category)
+    if sort_by == "popular":
+        query = query.order_by(Script.clone_count.desc(), Script.created_at.desc())
+    else:
+        query = query.order_by(Script.created_at.desc())
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -210,6 +218,8 @@ async def clone_template(
         source_type="user",
     )
     db.add(cloned)
+    # Increment clone count on the original template
+    template.clone_count = (template.clone_count or 0) + 1
     await db.flush()
     await db.refresh(cloned)
     return cloned

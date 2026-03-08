@@ -18,6 +18,8 @@ from app.schemas.auth import (
     UserResponse,
     TokenResponse,
     RefreshTokenRequest,
+    UserUpdate,
+    ChangePasswordRequest,
 )
 
 router = APIRouter()
@@ -84,3 +86,29 @@ async def refresh_token(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: CurrentUser) -> User:
     return current_user
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_me(
+    payload: UserUpdate,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    if payload.username is not None:
+        current_user.username = payload.username
+    await db.flush()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    if not verify_password(payload.old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="旧密码错误")
+    current_user.password_hash = get_password_hash(payload.new_password)
+    await db.flush()
+    return {"message": "密码修改成功"}

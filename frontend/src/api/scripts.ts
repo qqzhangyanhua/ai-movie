@@ -60,6 +60,7 @@ export async function getTemplates(params?: {
 
 export async function getCommunityTemplates(params?: {
   search?: string
+  category?: string
   sort_by?: string
 }): Promise<Script[]> {
   const { data } = await apiClient.get<Script[]>('/scripts/community', {

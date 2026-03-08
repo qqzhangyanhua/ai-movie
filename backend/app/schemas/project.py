@@ -19,6 +19,7 @@ class ProjectResponse(BaseModel):
     user_id: UUID
     name: str
     description: str | None
+    latest_video_status: str | None = None
     created_at: datetime
     updated_at: datetime
 
