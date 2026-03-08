@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth-utils";
 import { prisma } from "@/lib/prisma";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { CharacterStep } from "@/components/wizard/steps/CharacterStep";
+import { ScriptStep } from "@/components/wizard/steps/ScriptStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
 
 type PageProps = {
@@ -26,13 +27,16 @@ export default async function CreateProjectWorkbenchPage({
     notFound();
   }
 
-  const [allCharacters, projectCharacters] = await Promise.all([
+  const [allCharacters, projectCharacters, script] = await Promise.all([
     prisma.character.findMany({
       where: { userId: session.user.id },
     }),
     prisma.projectCharacter.findMany({
       where: { projectId },
       select: { characterId: true },
+    }),
+    prisma.script.findUnique({
+      where: { projectId },
     }),
   ]);
 
@@ -58,7 +62,9 @@ export default async function CreateProjectWorkbenchPage({
         selectedCharacterIds={selectedCharacterIds}
       />
     ),
-    script: <p className="text-muted-foreground">剧本选择（待实现）</p>,
+    script: (
+      <ScriptStep projectId={projectId} script={script} />
+    ),
     storyboard: (
       <p className="text-muted-foreground">分镜编辑（待实现）</p>
     ),
