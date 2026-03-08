@@ -3,8 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
+import { generateSubtitles } from "@/lib/actions/subtitle";
 
-export async function startVideoGeneration(projectId: string) {
+export async function startVideoGeneration(
+  projectId: string,
+  options?: { subtitles?: boolean }
+) {
   const session = await requireAuth();
 
   const project = await prisma.project.findFirst({
@@ -19,7 +23,7 @@ export async function startVideoGeneration(projectId: string) {
     0
   );
 
-  await prisma.video.create({
+  const video = await prisma.video.create({
     data: {
       projectId,
       duration: totalDuration,
@@ -37,6 +41,10 @@ export async function startVideoGeneration(projectId: string) {
     where: { id: projectId },
     data: { status: "GENERATING" },
   });
+
+  if (options?.subtitles) {
+    await generateSubtitles(projectId, video.id);
+  }
 
   revalidatePath(`/create/${projectId}`);
   return { success: true };

@@ -93,8 +93,10 @@ export default async function CreateProjectWorkbenchPage({
     generate: (
       <GenerateStep
         projectId={projectId}
+        videoId={video?.id ?? null}
         videoStatus={video?.status ?? null}
         videoUrl={video?.videoUrl ?? null}
+        subtitleUrl={video?.subtitleUrl ?? null}
         storyboardCount={storyboards.length}
         isGenerating={project.status === "GENERATING"}
       />
@@ -104,6 +106,7 @@ export default async function CreateProjectWorkbenchPage({
         projectId={projectId}
         videoId={video?.id ?? null}
         videoUrl={video?.videoUrl ?? null}
+        subtitleUrl={video?.subtitleUrl ?? null}
         posterUrl={video?.posterUrl ?? null}
         duration={video?.duration ?? null}
         resolution={video?.resolution ?? null}

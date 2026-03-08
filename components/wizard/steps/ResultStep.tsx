@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/lib/button-variants";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { ShareDialog } from "@/components/video/ShareDialog";
+import { SubtitleToggle } from "@/components/video/SubtitleToggle";
 
 interface ResultStepProps {
   projectId: string;
   videoId: string | null;
   videoUrl: string | null;
+  subtitleUrl: string | null;
   posterUrl: string | null;
   duration: number | null;
   resolution: string | null;
@@ -37,6 +39,7 @@ export function ResultStep({
   projectId,
   videoId,
   videoUrl,
+  subtitleUrl,
   posterUrl,
   duration,
   resolution,
@@ -64,6 +67,10 @@ export function ResultStep({
   return (
     <div className="space-y-6">
       <VideoPlayer videoUrl={videoUrl} posterUrl={posterUrl} />
+
+      {videoId && (
+        <SubtitleToggle videoId={videoId} subtitleUrl={subtitleUrl} />
+      )}
 
       <div className="rounded-lg border p-4">
         <h3 className="mb-2 font-semibold">{projectTitle}</h3>
