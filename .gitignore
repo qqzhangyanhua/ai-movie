@@ -15,6 +15,18 @@ env/
 node_modules/
 dist/
 .cache/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+
+# Next.js
+/.next/
+/out/
+.vercel
+*.tsbuildinfo
 
 # Environment
 .env
