@@ -1,29 +1,49 @@
 import Link from "next/link";
-import { Film } from "lucide-react";
+import { Hero } from "@/components/landing/Hero";
+import { Features } from "@/components/landing/Features";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Footer } from "@/components/landing/Footer";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <Film className="size-16 text-primary" />
-        <h1 className="text-4xl font-bold tracking-tight">AI 微电影</h1>
-        <p className="max-w-md text-lg text-muted-foreground">
-          上传照片，AI 生成脚本，一键制作专属微电影
-        </p>
-      </div>
-      <div className="flex gap-4">
-        <Link href="/login" className={cn(buttonVariants({ size: "lg" }))}>
-          登录
-        </Link>
-        <Link
-          href="/register"
-          className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-        >
-          注册
-        </Link>
-      </div>
+    <div className="min-h-screen bg-slate-950">
+      {/* Header */}
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="text-xl font-bold text-white">
+            AI 微电影
+          </Link>
+          <nav className="flex items-center gap-4">
+            <Link
+              href="/login"
+              className={cn(
+                buttonVariants({ variant: "ghost" }),
+                "text-slate-300 hover:text-white"
+              )}
+            >
+              登录
+            </Link>
+            <Link
+              href="/register"
+              className={cn(
+                buttonVariants(),
+                "bg-indigo-600 text-white hover:bg-indigo-500"
+              )}
+            >
+              注册
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <Hero />
+        <Features />
+        <HowItWorks />
+        <Footer />
+      </main>
     </div>
   );
 }
