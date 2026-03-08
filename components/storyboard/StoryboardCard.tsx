@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2, Clock, ChevronUp, ChevronDown, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,6 +10,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { generateStoryboardPreview } from "@/lib/actions/storyboard-preview";
 import type { Storyboard } from "@prisma/client";
 
 const CAMERA_OPTION_COLORS: Record<string, string> = {
@@ -36,7 +38,9 @@ export function StoryboardCard({
   onMoveUp,
   onMoveDown,
 }: StoryboardCardProps) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const cameraColor =
     storyboard.cameraType
       ? CAMERA_OPTION_COLORS[storyboard.cameraType] ?? "bg-muted"
@@ -53,10 +57,23 @@ export function StoryboardCard({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50 text-muted-foreground">
-              <span className="text-xs font-medium">
-                场景 {storyboard.sceneNumber}
-              </span>
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-muted to-muted/50 text-muted-foreground">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8 gap-1 px-2 text-xs"
+                disabled={generating}
+                onClick={async () => {
+                  setGenerating(true);
+                  await generateStoryboardPreview(storyboard.id);
+                  setGenerating(false);
+                  router.refresh();
+                }}
+              >
+                <ImagePlus className="size-3" />
+                {generating ? "生成中…" : "生成预览"}
+              </Button>
+              <span className="text-xs">场景 {storyboard.sceneNumber}</span>
             </div>
           )}
         </div>

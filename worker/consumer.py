@@ -12,6 +12,7 @@ import redis
 from config import DATABASE_URL, REDIS_URL
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
+from services.image_service import generate_storyboard_preview
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -165,11 +166,44 @@ def handle_video_clip(r: redis.Redis, conn, payload: dict) -> None:
             conn.rollback()
 
 
+def handle_storyboard_preview(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle storyboard:preview task. Generates image via DALL-E and updates DB."""
+    project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    storyboard_id = data.get("storyboardId", "")
+    description = data.get("description", "")
+    camera_type = data.get("cameraType", "中景")
+    action = data.get("action", "")
+
+    publish_progress(r, project_id, "processing", {"storyboardId": storyboard_id})
+
+    image_url = generate_storyboard_preview(description, camera_type, action)
+
+    if conn and storyboard_id and image_url:
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE "Storyboard" SET "imageUrl" = %s, "updatedAt" = NOW()
+                WHERE id = %s
+                """,
+                (image_url, storyboard_id),
+            )
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            logger.error("DB update failed: %s", e)
+            conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"storyboardId": storyboard_id})
+
+
 HANDLERS = {
     "script:generate": handle_script_generate,
     "video:compose": handle_video_compose,
     "character:generate": handle_character_generate,
     "video:clip": handle_video_clip,
+    "storyboard:preview": handle_storyboard_preview,
 }
 
 
