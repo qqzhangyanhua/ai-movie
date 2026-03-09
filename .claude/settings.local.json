@@ -20,7 +20,22 @@
       "Bash(/tmp/ccg_context.txt:*)",
       "Read(//tmp/**)",
       "Bash(pnpm prisma:*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm exec:*)",
+      "mcp__auggie-mcp__codebase-retrieval",
+      "Bash(openssl rand:*)",
+      "Bash(pnpm list:*)",
+      "Bash(docker ps:*)",
+      "Bash(timeout 5 bash:*)",
+      "Bash(psql:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma:*)",
+      "Bash(echo:*)",
+      "Bash(rm:*)",
+      "Bash(pgrep:*)",
+      "Bash(node:*)",
+      "Bash(DATABASE_URL=\"postgresql://aimovie:xtCGcStxwnJS3T6R@111.228.37.74:5432/aimovie\" node:*)",
+      "Bash(.gitignore.tmp:*)"
     ]
   }
 }

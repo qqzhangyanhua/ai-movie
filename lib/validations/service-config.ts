@@ -13,7 +13,7 @@ export const serviceConfigSchema = z.object({
   accessKey: z.string().optional(),
   secretKey: z.string().optional(),
   isActive: z.boolean(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const llmConfigSchema = z.object({
