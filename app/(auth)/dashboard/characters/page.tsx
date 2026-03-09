@@ -8,7 +8,20 @@ export default async function CharactersPage() {
   const characters = await prisma.character.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
-    include: { projects: { include: { project: true } } },
+    include: {
+      projects: {
+        include: {
+          project: {
+            include: {
+              script: true,
+              scenes: {
+                orderBy: { sceneNumber: "asc" },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   return (

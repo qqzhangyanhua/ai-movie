@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  toggleServiceConfig,
   deleteServiceConfig,
 } from "@/lib/actions/service-config";
 import { toast } from "sonner";
@@ -45,8 +44,7 @@ export function ServiceConfigList({
   async function handleToggle(id: string) {
     setToggling(id);
     try {
-      await toggleServiceConfig(id);
-      toast.success("配置状态已更新");
+      toast.info("ServiceConfig 功能已废弃，请使用环境变量配置");
       onUpdate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "操作失败");
@@ -59,7 +57,7 @@ export function ServiceConfigList({
     if (!deleteId) return;
 
     try {
-      await deleteServiceConfig(deleteId);
+      await deleteServiceConfig();
       toast.success("配置已删除");
       onUpdate();
     } catch (error) {
@@ -265,8 +263,8 @@ export function ServiceConfigList({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>删除</AlertDialogAction>
+            <AlertDialogCancel variant="outline" size="default">取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" size="default" onClick={handleDelete}>删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

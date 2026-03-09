@@ -47,10 +47,7 @@ export function ServiceConfigForm({
     setLoading(true);
 
     try {
-      await createServiceConfig({
-        type,
-        ...formData,
-      });
+      await createServiceConfig();
       toast.success("配置已保存");
       onSuccess();
     } catch (error) {

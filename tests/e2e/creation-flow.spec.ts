@@ -33,7 +33,9 @@ test.describe("核心创作流程", () => {
     await expect(page.getByRole("link", { name: "注册" })).toBeVisible();
   });
 
-  test.skip(needsFullBackend, "注册新用户", async ({ page }) => {
+  test("注册新用户", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     const uniqueEmail = `e2e-${Date.now()}@example.com`;
     const username = `user_${Date.now()}`;
     const password = "Test123456";
@@ -48,7 +50,9 @@ test.describe("核心创作流程", () => {
     await expect(page).toHaveURL(/\/(login|dashboard)/);
   });
 
-  test.skip(needsFullBackend, "登录", async ({ page }) => {
+  test("登录", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     await page.goto("/login");
 
     await page.getByLabel("邮箱").fill("test@example.com");
@@ -58,14 +62,18 @@ test.describe("核心创作流程", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test.skip(needsFullBackend, "Dashboard 页面", async ({ page }) => {
+  test("Dashboard 页面", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     await page.goto("/dashboard");
 
     await expect(page.getByRole("heading", { name: "我的电影" })).toBeVisible();
     await expect(page.getByRole("link", { name: /创建项目/ })).toBeVisible();
   });
 
-  test.skip(needsFullBackend, "创建项目", async ({ page }) => {
+  test("创建项目", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     await page.goto("/create");
 
     await page.getByLabel("电影名称").fill(`E2E 测试项目 ${Date.now()}`);
@@ -74,17 +82,21 @@ test.describe("核心创作流程", () => {
     await expect(page).toHaveURL(/\/create\/[^/]+\?step=characters/);
   });
 
-  test.skip(needsFullBackend, "角色库页面可访问", async ({ page }) => {
+  test("角色库页面可访问", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     await page.goto("/dashboard/characters");
 
     await expect(page.getByRole("heading", { name: "角色库" })).toBeVisible();
   });
 
-  test.skip(needsFullBackend, "模板库页面可访问", async ({ page }) => {
+  test("模板库页面可访问", async ({ page }) => {
+    test.skip(needsFullBackend, "需要完整后端");
+
     await page.goto("/dashboard/templates");
 
     await expect(page.getByRole("heading", { name: "模板库" })).toBeVisible();
-    await expect(page.getByText("全部").or(page.getByRole("button", { name: "全部" })).toBeVisible();
+    await expect(page.getByText("全部").or(page.getByRole("button", { name: "全部" }))).toBeVisible();
   });
 
   test("公开分享页面处理不存在的视频", async ({ page }) => {

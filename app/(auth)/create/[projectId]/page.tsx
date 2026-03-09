@@ -8,6 +8,7 @@ import { StoryboardStep } from "@/components/wizard/steps/StoryboardStep";
 import { GenerateStep } from "@/components/wizard/steps/GenerateStep";
 import { ResultStep } from "@/components/wizard/steps/ResultStep";
 import type { StepKey } from "@/components/wizard/StepIndicator";
+import type { ScriptScene } from "@/lib/data/script-templates";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
@@ -57,6 +58,18 @@ export default async function CreateProjectWorkbenchPage({
     id: pc.character.id,
     name: pc.character.name,
   }));
+  const scriptScenes = Array.isArray(script?.content)
+    ? (script.content as ScriptScene[]).map((scene) => ({
+        sceneNumber: scene.sceneNumber ?? 0,
+        description: scene.description ?? "",
+        characters: scene.characters ?? [],
+      }))
+    : [];
+  const storyboardReferences = scenes.map((scene) => ({
+    sceneNumber: scene.sceneNumber,
+    description: scene.description ?? "",
+    characters: scene.characters ?? [],
+  }));
 
   const validSteps: StepKey[] = [
     "characters",
@@ -76,10 +89,16 @@ export default async function CreateProjectWorkbenchPage({
         projectId={projectId}
         allCharacters={allCharacters}
         selectedCharacterIds={selectedCharacterIds}
+        scriptScenes={scriptScenes}
+        storyboards={storyboardReferences}
       />
     ),
     script: (
-      <ScriptStep projectId={projectId} script={script} />
+      <ScriptStep
+        projectId={projectId}
+        script={script}
+        projectCharacters={projectCharactersWithNames}
+      />
     ),
     storyboard: (
       <StoryboardStep

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { mkdir, unlink, writeFile } from "fs/promises";
+import path from "path";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
-import { checkVideoQuota } from "@/lib/actions/quota";
-import { executeQuickCreatePipeline } from "@/lib/tasks/quick-create-pipeline";
+import {
+  checkVideoQuota,
+  deductVideoQuota,
+  refundVideoQuota,
+} from "@/lib/actions/quota";
+import { enqueueQuickCreatePipeline } from "@/lib/tasks/quick-create-pipeline";
 
 function toOptionalString(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") return null;
@@ -44,17 +50,40 @@ export async function POST(req: Request) {
       );
     }
 
+    const photoUrls = await saveUploadedPhotos(userId, photos);
+
     const project = await prisma.project.create({
       data: {
         userId,
         title,
         description,
-        status: "DRAFT",
+        coverUrl: photoUrls[0] ?? null,
+        status: "GENERATING",
       },
       select: { id: true },
     });
 
-    void executeQuickCreatePipeline(project.id);
+    const quotaResult = await deductVideoQuota(userId);
+    if (!quotaResult.success) {
+      await cleanupQuickCreate(project.id, photoUrls);
+      return NextResponse.json(
+        { error: quotaResult.error ?? "视频额度不足" },
+        { status: 403 }
+      );
+    }
+
+    try {
+      await enqueueQuickCreatePipeline(project.id, userId, {
+        title,
+        description,
+        prompt: description ? `${title}\n${description}` : title,
+        photoUrls,
+      });
+    } catch (error) {
+      await refundVideoQuota(userId);
+      await cleanupQuickCreate(project.id, photoUrls);
+      throw error;
+    }
 
     return NextResponse.json(
       { projectId: project.id, jobId: project.id, status: "QUEUED" },
@@ -67,4 +96,33 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+async function saveUploadedPhotos(userId: string, photos: File[]) {
+  const uploadDir = path.join(process.cwd(), "public", "uploads", "quick-create");
+  await mkdir(uploadDir, { recursive: true });
+
+  return Promise.all(
+    photos.map(async (photo, index) => {
+      const bytes = await photo.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const safeName = photo.name.replace(/[^a-zA-Z0-9.-]/g, "-");
+      const fileName = `${Date.now()}-${index}-${userId}-${safeName}`;
+      const filePath = path.join(uploadDir, fileName);
+      await writeFile(filePath, buffer);
+      return `/uploads/quick-create/${fileName}`;
+    })
+  );
+}
+
+async function cleanupQuickCreate(projectId: string, photoUrls: string[]) {
+  await prisma.project.delete({ where: { id: projectId } }).catch(() => undefined);
+
+  await Promise.all(
+    photoUrls.map(async (photoUrl) => {
+      const relativePath = photoUrl.replace(/^\/+/, "").replace(/\//g, path.sep);
+      const absolutePath = path.join(process.cwd(), "public", relativePath);
+      await unlink(absolutePath).catch(() => undefined);
+    })
+  );
 }

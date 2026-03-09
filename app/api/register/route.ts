@@ -40,9 +40,13 @@ export async function POST(req: Request) {
       { id: user.id, email: user.email, username: user.username },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("注册错误:", error);
     return NextResponse.json(
-      { error: "服务器内部错误" },
+      {
+        error: "服务器内部错误",
+        details: error instanceof Error ? error.message : "未知错误"
+      },
       { status: 500 }
     );
   }
