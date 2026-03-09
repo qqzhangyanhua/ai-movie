@@ -4,21 +4,24 @@ import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScriptTemplateGrid } from "@/components/script/ScriptTemplateGrid";
-import { ScriptEditor } from "@/components/script/ScriptEditor";
 import { CustomScriptForm } from "@/components/script/CustomScriptForm";
+import { ScriptEditor } from "@/components/script/ScriptEditor";
 import { ScriptGenerator } from "@/components/script/ScriptGenerator";
+import { ScriptTemplateGrid } from "@/components/script/ScriptTemplateGrid";
 import type { ScriptScene } from "@/lib/data/script-templates";
+import type { ProjectCharacterOption } from "@/components/script/types";
 
 interface ScriptStepProps {
   projectId: string;
   script: { content: unknown } | null;
+  projectCharacters: ProjectCharacterOption[];
   onNext?: () => void;
 }
 
 export function ScriptStep({
   projectId,
   script,
+  projectCharacters,
   onNext,
 }: ScriptStepProps) {
   const router = useRouter();
@@ -39,6 +42,7 @@ export function ScriptStep({
         <ScriptEditor
           projectId={projectId}
           scenes={scenes}
+          projectCharacters={projectCharacters}
           onReset={() => router.refresh()}
         />
         <div className="flex justify-end">
@@ -54,7 +58,7 @@ export function ScriptStep({
   return (
     <div className="space-y-6">
       <Tabs defaultValue="templates" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="templates">选择模板</TabsTrigger>
           <TabsTrigger value="ai">AI 生成</TabsTrigger>
           <TabsTrigger value="custom">自定义剧本</TabsTrigger>
@@ -74,6 +78,7 @@ export function ScriptStep({
         <TabsContent value="custom" className="mt-4">
           <CustomScriptForm
             projectId={projectId}
+            projectCharacters={projectCharacters}
             onSaved={() => router.refresh()}
           />
         </TabsContent>

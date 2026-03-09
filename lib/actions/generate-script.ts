@@ -30,17 +30,11 @@ export async function generateScript(projectId: string, prompt: string) {
     return { error: "项目不存在" };
   }
 
-  const llmConfig = await prisma.serviceConfig.findFirst({
-    where: {
-      userId: session.user.id,
-      type: "LLM",
-      isActive: true,
-    },
-  });
-
-  if (!llmConfig) {
+  // ServiceConfig 已废弃，直接使用环境变量
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     return {
-      error: "未配置 AI 服务，请前往设置页面配置 OpenAI 或其他 LLM 服务",
+      error: "未配置 OPENAI_API_KEY 环境变量",
     };
   }
 
@@ -57,11 +51,11 @@ export async function generateScript(projectId: string, prompt: string) {
       prompt,
       characters,
       llmConfig: {
-        provider: llmConfig.provider,
-        apiKey: llmConfig.apiKey,
-        baseUrl: llmConfig.baseUrl,
-        model: llmConfig.model,
-        config: llmConfig.config,
+        provider: "openai",
+        apiKey,
+        baseUrl: process.env.OPENAI_BASE_URL,
+        model: process.env.OPENAI_MODEL || "gpt-4",
+        config: {},
       },
     },
   });

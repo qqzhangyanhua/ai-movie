@@ -1,11 +1,34 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { ScriptType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth-utils";
 import { scriptTemplates } from "@/lib/data/script-templates";
-import { ScriptType } from "@prisma/client";
 import type { ScriptScene } from "@/lib/data/script-templates";
+import { prisma } from "@/lib/prisma";
+
+const DEFAULT_CAMERA_TYPE = "中景" as ScriptScene["cameraType"];
+
+function normalizeScene(
+  scene: Partial<ScriptScene>,
+  sceneNumber: number
+): ScriptScene {
+  return {
+    sceneNumber,
+    description: scene.description ?? "",
+    characters: scene.characters ?? [],
+    action: scene.action ?? "",
+    cameraType: scene.cameraType ?? DEFAULT_CAMERA_TYPE,
+    duration: scene.duration ?? 5,
+    dialogue: scene.dialogue ?? "",
+  };
+}
+
+function normalizeScenes(scenes: unknown[]): ScriptScene[] {
+  return scenes.map((scene, index) =>
+    normalizeScene((scene ?? {}) as Partial<ScriptScene>, index + 1)
+  );
+}
 
 export async function applyScriptTemplate(projectId: string, templateId: string) {
   const session = await requireAuth();
@@ -15,7 +38,7 @@ export async function applyScriptTemplate(projectId: string, templateId: string)
   });
   if (!project) return { error: "项目不存在" };
 
-  const template = scriptTemplates.find((t) => t.id === templateId);
+  const template = scriptTemplates.find((item) => item.id === templateId);
   if (!template) return { error: "模板不存在" };
 
   await prisma.script.upsert({
@@ -23,12 +46,12 @@ export async function applyScriptTemplate(projectId: string, templateId: string)
     create: {
       projectId,
       type: ScriptType.TEMPLATE,
-      content: template.scenes as unknown as object,
+      content: normalizeScenes(template.scenes) as unknown as object,
       metadata: { title: template.title, category: template.category },
     },
     update: {
       type: ScriptType.TEMPLATE,
-      content: template.scenes as unknown as object,
+      content: normalizeScenes(template.scenes) as unknown as object,
       metadata: { title: template.title, category: template.category },
     },
   });
@@ -50,7 +73,7 @@ export async function saveCustomScript(projectId: string, scenes: unknown[]) {
   });
   if (!project) return { error: "项目不存在" };
 
-  const validScenes = scenes as ScriptScene[];
+  const validScenes = normalizeScenes(scenes);
 
   await prisma.script.upsert({
     where: { projectId },
@@ -94,7 +117,10 @@ export async function updateScriptScene(
   }
 
   const updatedScenes = [...content];
-  updatedScenes[sceneIndex] = { ...updatedScenes[sceneIndex], ...updates };
+  updatedScenes[sceneIndex] = normalizeScene(
+    { ...updatedScenes[sceneIndex], ...updates },
+    updatedScenes[sceneIndex]?.sceneNumber ?? sceneIndex + 1
+  );
 
   await prisma.script.update({
     where: { projectId },
@@ -119,15 +145,7 @@ export async function addScene(projectId: string) {
   if (!Array.isArray(content)) return { error: "剧本内容无效" };
 
   const newSceneNumber = content.length + 1;
-  const newScene: ScriptScene = {
-    sceneNumber: newSceneNumber,
-    description: "",
-    action: "",
-    cameraType: "中景",
-    duration: 5,
-    dialogue: "",
-  };
-
+  const newScene = normalizeScene({}, newSceneNumber);
   const updatedScenes = [...content, newScene];
 
   await prisma.script.update({
@@ -155,8 +173,8 @@ export async function deleteScene(projectId: string, sceneIndex: number) {
   }
 
   const updatedScenes = content
-    .filter((_, i) => i !== sceneIndex)
-    .map((s, i) => ({ ...s, sceneNumber: i + 1 }));
+    .filter((_, index) => index !== sceneIndex)
+    .map((scene, index) => normalizeScene(scene, index + 1));
 
   await prisma.script.update({
     where: { projectId },
@@ -193,17 +211,16 @@ export async function reorderScenes(
   }
 
   const updatedScenes = [...content];
-  const [removed] = updatedScenes.splice(fromIndex, 1);
-  updatedScenes.splice(toIndex, 0, removed);
+  const [removedScene] = updatedScenes.splice(fromIndex, 1);
+  updatedScenes.splice(toIndex, 0, removedScene);
 
-  const renumbered = updatedScenes.map((s, i) => ({
-    ...s,
-    sceneNumber: i + 1,
-  }));
+  const renumberedScenes = updatedScenes.map((scene, index) =>
+    normalizeScene(scene, index + 1)
+  );
 
   await prisma.script.update({
     where: { projectId },
-    data: { content: renumbered as unknown as object },
+    data: { content: renumberedScenes as unknown as object },
   });
 
   revalidatePath(`/create/${projectId}`);

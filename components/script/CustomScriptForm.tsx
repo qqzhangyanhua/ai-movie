@@ -16,23 +16,34 @@ import {
 } from "@/components/ui/select";
 import { saveCustomScript } from "@/lib/actions/script";
 import type { ScriptScene } from "@/lib/data/script-templates";
+import type {
+  ProjectCharacterOption,
+  SceneFieldValue,
+} from "@/components/script/types";
 
 const CAMERA_OPTIONS = ["远景", "中景", "特写"] as const;
 
-const emptyScene = (n: number): ScriptScene => ({
-  sceneNumber: n,
+const emptyScene = (sceneNumber: number): ScriptScene => ({
+  sceneNumber,
   description: "",
   action: "",
   cameraType: "中景",
   duration: 5,
+  dialogue: "",
+  characters: [],
 });
 
 interface CustomScriptFormProps {
   projectId: string;
+  projectCharacters: ProjectCharacterOption[];
   onSaved?: () => void;
 }
 
-export function CustomScriptForm({ projectId, onSaved }: CustomScriptFormProps) {
+export function CustomScriptForm({
+  projectId,
+  projectCharacters,
+  onSaved,
+}: CustomScriptFormProps) {
   const router = useRouter();
   const [scenes, setScenes] = useState<ScriptScene[]>([
     emptyScene(1),
@@ -42,33 +53,57 @@ export function CustomScriptForm({ projectId, onSaved }: CustomScriptFormProps) 
   const [saving, setSaving] = useState(false);
 
   function addScene() {
-    setScenes((prev) => [
-      ...prev,
-      emptyScene(prev.length + 1),
+    setScenes((previousScenes) => [
+      ...previousScenes,
+      emptyScene(previousScenes.length + 1),
     ]);
   }
 
   function removeScene(index: number) {
-    setScenes((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      return next.map((s, i) => ({ ...s, sceneNumber: i + 1 }));
+    setScenes((previousScenes) => {
+      const nextScenes = previousScenes.filter((_, sceneIndex) => sceneIndex !== index);
+      return nextScenes.map((scene, sceneIndex) => ({
+        ...scene,
+        sceneNumber: sceneIndex + 1,
+      }));
     });
   }
 
-  function updateScene(index: number, field: keyof ScriptScene, value: string | number) {
-    setScenes((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
+  function updateScene(
+    index: number,
+    field: keyof ScriptScene,
+    value: SceneFieldValue
+  ) {
+    setScenes((previousScenes) => {
+      const nextScenes = [...previousScenes];
+      const currentScene = nextScenes[index];
+
+      if (!currentScene) {
+        return previousScenes;
+      }
+
+      nextScenes[index] = { ...currentScene, [field]: value } as ScriptScene;
+      return nextScenes;
     });
+  }
+
+  function toggleCharacter(index: number, name: string) {
+    const characters = scenes[index]?.characters ?? [];
+    const nextCharacters = characters.includes(name)
+      ? characters.filter((character) => character !== name)
+      : [...characters, name];
+
+    updateScene(index, "characters", nextCharacters);
   }
 
   async function handleSave() {
-    const valid = scenes.every((s) => s.description.trim().length > 0);
+    const valid = scenes.every((scene) => scene.description.trim().length > 0);
     if (!valid) return;
+
     setSaving(true);
     const result = await saveCustomScript(projectId, scenes);
     setSaving(false);
+
     if (result.success) {
       onSaved?.();
       router.refresh();
@@ -87,10 +122,7 @@ export function CustomScriptForm({ projectId, onSaved }: CustomScriptFormProps) 
 
       <div className="space-y-6">
         {scenes.map((scene, index) => (
-          <div
-            key={index}
-            className="rounded-lg border p-4 space-y-4"
-          >
+          <div key={scene.sceneNumber} className="space-y-4 rounded-lg border p-4">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">场景 {scene.sceneNumber}</h4>
               {scenes.length > 1 && (
@@ -104,49 +136,88 @@ export function CustomScriptForm({ projectId, onSaved }: CustomScriptFormProps) 
                 </Button>
               )}
             </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>场景描述 *</Label>
                 <Textarea
                   value={scene.description}
-                  onChange={(e) =>
-                    updateScene(index, "description", e.target.value)
+                  onChange={(event) =>
+                    updateScene(index, "description", event.target.value)
                   }
                   placeholder="描述该场景的画面内容"
                   className="min-h-[80px]"
                 />
               </div>
+
               <div className="space-y-2 sm:col-span-2">
                 <Label>动作描述</Label>
                 <Textarea
                   value={scene.action}
-                  onChange={(e) =>
-                    updateScene(index, "action", e.target.value)
+                  onChange={(event) =>
+                    updateScene(index, "action", event.target.value)
                   }
                   placeholder="描述角色动作"
                   className="min-h-[60px]"
                 />
               </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>对白</Label>
+                <Textarea
+                  value={scene.dialogue ?? ""}
+                  onChange={(event) =>
+                    updateScene(index, "dialogue", event.target.value)
+                  }
+                  placeholder="角色台词，可选"
+                  className="min-h-[60px]"
+                />
+              </div>
+
+              {projectCharacters.length > 0 && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>出场角色</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {projectCharacters.map((character) => (
+                      <Button
+                        key={character.id}
+                        type="button"
+                        size="sm"
+                        variant={
+                          (scene.characters ?? []).includes(character.name)
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={() => toggleCharacter(index, character.name)}
+                      >
+                        {character.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>镜头类型</Label>
                 <Select
                   value={scene.cameraType}
-                  onValueChange={(v) =>
-                    updateScene(index, "cameraType", v as ScriptScene["cameraType"])
+                  onValueChange={(value) =>
+                    updateScene(index, "cameraType", value as ScriptScene["cameraType"])
                   }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CAMERA_OPTIONS.map((opt) => (
-                      <SelectItem key={opt} value={opt}>
-                        {opt}
+                    {CAMERA_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>时长（秒）</Label>
                 <Input
@@ -154,11 +225,11 @@ export function CustomScriptForm({ projectId, onSaved }: CustomScriptFormProps) 
                   min={1}
                   max={30}
                   value={scene.duration}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     updateScene(
                       index,
                       "duration",
-                      parseInt(e.target.value, 10) || 5
+                      parseInt(event.target.value, 10) || 5
                     )
                   }
                 />

@@ -9,6 +9,22 @@ export type GenerateAiScriptResult =
   | { success: true; title: string }
   | { error: string };
 
+type CharacterSummary = {
+  name: string;
+  personality?: string | null;
+  style?: string | null;
+};
+
+type ScriptScene = {
+  sceneNumber: number;
+  description: string;
+  characters: string[];
+  action: string;
+  cameraType: "远景" | "中景" | "特写";
+  duration: number;
+  dialogue?: string;
+};
+
 export async function generateAiScript(
   projectId: string,
   prompt: string
@@ -34,29 +50,29 @@ export async function generateAiScript(
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return await saveMockScript(projectId);
+      return await saveMockScript(projectId, characters);
     }
 
     const { default: OpenAI } = await import("openai");
     const client = new OpenAI({ apiKey });
 
-    const charDescriptions = characters.map((c) => {
-      let desc = `- ${c.name}`;
-      if (c.personality) desc += `，性格：${c.personality}`;
-      if (c.style) desc += `，风格：${c.style}`;
+    const charDescriptions = characters.map((character) => {
+      let desc = `- ${character.name}`;
+      if (character.personality) desc += `，性格：${character.personality}`;
+      if (character.style) desc += `，外观：${character.style}`;
       return desc;
     });
 
-    const systemPrompt = `你是一位专业的微电影编剧。根据用户描述和角色信息，生成一个结构化的微电影剧本。
+    const systemPrompt = `你是一位专业的微电影编剧。请根据用户描述和角色信息，生成一个结构化剧本。
 要求：
-1. 剧本包含 3-5 个场景
-2. 每个场景包含：场景编号、场景描述、角色动作、镜头类型（远景/中景/特写）、时长（4-8秒）、对白（可选）
-3. 剧情要有起承转合
-4. 角色行为要符合设定的性格特征
-5. 总时长控制在 20-40 秒
+1. 剧本包含 3-5 个场景。
+2. 每个场景必须包含：sceneNumber、description、characters、action、cameraType、duration、dialogue。
+3. characters 必须是字符串数组，只能使用提供过的角色名；单角色场景也必须返回数组。
+4. 故事需要有起承转合，角色行为要符合设定。
+5. 总时长控制在 20-40 秒之间。
 
-请严格按照以下 JSON 格式返回：
-{"title":"标题","scenes":[{"sceneNumber":1,"description":"场景描述","action":"角色动作","cameraType":"远景|中景|特写","duration":5,"dialogue":"对白"}]}`;
+请严格返回 JSON：
+{"title":"标题","scenes":[{"sceneNumber":1,"description":"场景描述","characters":["角色A"],"action":"角色动作","cameraType":"远景|中景|特写","duration":5,"dialogue":"对白"}]}`;
 
     const userMsg =
       charDescriptions.length > 0
@@ -78,20 +94,20 @@ export async function generateAiScript(
     if (!content) throw new Error("Empty response");
 
     const parsed = JSON.parse(content) as { scenes?: unknown[]; title?: string };
-    const scenes = (parsed.scenes ?? []) as Prisma.InputJsonValue;
-    const title = parsed.title ?? prompt.slice(0, 20);
+    const normalizedScenes = normalizeScenes(parsed.scenes ?? [], characters);
+    const title = (parsed.title ?? prompt.slice(0, 20)) || "AI 微电影";
 
     await prisma.script.upsert({
       where: { projectId },
       create: {
         projectId,
         type: "AI_GENERATED",
-        content: scenes,
+        content: normalizedScenes as Prisma.InputJsonValue,
         metadata: { title },
       },
       update: {
         type: "AI_GENERATED",
-        content: scenes,
+        content: normalizedScenes as Prisma.InputJsonValue,
         metadata: { title },
       },
     });
@@ -105,18 +121,24 @@ export async function generateAiScript(
     return { success: true, title };
   } catch (error) {
     console.error("AI script generation failed:", error);
-    return await saveMockScript(projectId);
+    return await saveMockScript(projectId, characters);
   }
 }
 
 async function saveMockScript(
-  projectId: string
+  projectId: string,
+  characters: CharacterSummary[]
 ): Promise<{ success: true; title: string }> {
-  const mockScenes = [
+  const charNames = characters.map((character) => character.name).filter(Boolean);
+  const mainChar = charNames[0] ?? "主角";
+  const supportChar = charNames[1] ?? mainChar;
+
+  const mockScenes: ScriptScene[] = [
     {
       sceneNumber: 1,
       description: "清晨的城市街道",
-      action: "主角走在街道上",
+      characters: [mainChar],
+      action: `${mainChar}走在街道上`,
       cameraType: "远景",
       duration: 5,
       dialogue: "",
@@ -124,7 +146,8 @@ async function saveMockScript(
     {
       sceneNumber: 2,
       description: "咖啡厅内",
-      action: "主角坐在窗边",
+      characters: supportChar === mainChar ? [mainChar] : [mainChar, supportChar],
+      action: `${mainChar}坐在窗边`,
       cameraType: "中景",
       duration: 5,
       dialogue: "也许，是时候做出改变了。",
@@ -132,7 +155,8 @@ async function saveMockScript(
     {
       sceneNumber: 3,
       description: "夕阳下的天台",
-      action: "主角微笑望向远方",
+      characters: [mainChar],
+      action: `${mainChar}微笑望向远方`,
       cameraType: "特写",
       duration: 6,
       dialogue: "",
@@ -161,4 +185,43 @@ async function saveMockScript(
 
   revalidatePath(`/create/${projectId}`);
   return { success: true, title: "AI 生成剧本（示例）" };
+}
+
+function normalizeScenes(rawScenes: unknown[], characters: CharacterSummary[]): ScriptScene[] {
+  const availableNames = characters.map((character) => character.name).filter(Boolean);
+
+  return rawScenes.map((rawScene, index) => {
+    const scene = (rawScene ?? {}) as Record<string, unknown>;
+    const sceneCharacters = Array.isArray(scene.characters)
+      ? scene.characters.map(String).map((name) => name.trim()).filter(Boolean)
+      : [];
+
+    return {
+      sceneNumber:
+        typeof scene.sceneNumber === "number" && Number.isFinite(scene.sceneNumber)
+          ? scene.sceneNumber
+          : index + 1,
+      description: typeof scene.description === "string" ? scene.description : "",
+      characters:
+        sceneCharacters.length > 0
+          ? sceneCharacters
+          : availableNames.length > 0
+            ? [availableNames[0]]
+            : ["主角"],
+      action: typeof scene.action === "string" ? scene.action : "",
+      cameraType: normalizeCameraType(scene.cameraType),
+      duration:
+        typeof scene.duration === "number" && Number.isFinite(scene.duration)
+          ? Math.min(Math.max(Math.round(scene.duration), 1), 30)
+          : 5,
+      dialogue: typeof scene.dialogue === "string" ? scene.dialogue : "",
+    };
+  });
+}
+
+function normalizeCameraType(cameraType: unknown): ScriptScene["cameraType"] {
+  if (cameraType === "远景" || cameraType === "中景" || cameraType === "特写") {
+    return cameraType;
+  }
+  return "中景";
 }
