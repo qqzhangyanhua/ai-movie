@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Film, User, Calendar, Clock, Monitor, Sparkles } from "lucide-react";
+import { Film, User, Calendar, Clock, Monitor, Sparkles, Download, Share2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
+import { VideoActions } from "@/components/video/VideoActions";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -164,6 +165,11 @@ export default async function MovieSharePage({ params }: PageProps) {
             posterUrl={video.posterUrl}
             className="border-0"
           />
+        </div>
+
+        {/* 视频操作按钮 */}
+        <div className="mt-6">
+          <VideoActions videoId={video.id} videoUrl={video.videoUrl} title={project.title} />
         </div>
 
         {/* 电影信息 */}

@@ -30,7 +30,7 @@ export default async function CreateProjectWorkbenchPage({
     notFound();
   }
 
-  const [allCharacters, projectCharacters, script, storyboards, video] =
+  const [allCharacters, projectCharacters, script, scenes, video] =
     await Promise.all([
       prisma.character.findMany({
         where: { userId: session.user.id },
@@ -42,10 +42,9 @@ export default async function CreateProjectWorkbenchPage({
       prisma.script.findUnique({
         where: { projectId },
       }),
-      prisma.storyboard.findMany({
+      prisma.scene.findMany({
         where: { projectId },
         orderBy: { sceneNumber: "asc" },
-        include: { videoClip: true },
       }),
       prisma.video.findFirst({
         where: { projectId },
@@ -85,7 +84,7 @@ export default async function CreateProjectWorkbenchPage({
     storyboard: (
       <StoryboardStep
         projectId={projectId}
-        storyboards={storyboards}
+        storyboards={scenes}
         projectCharacters={projectCharactersWithNames}
         hasScript={!!script}
       />
@@ -97,7 +96,7 @@ export default async function CreateProjectWorkbenchPage({
         videoStatus={video?.status ?? null}
         videoUrl={video?.videoUrl ?? null}
         subtitleUrl={video?.subtitleUrl ?? null}
-        storyboardCount={storyboards.length}
+        storyboardCount={scenes.length}
         isGenerating={project.status === "GENERATING"}
       />
     ),

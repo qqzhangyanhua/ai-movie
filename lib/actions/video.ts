@@ -13,12 +13,12 @@ export async function startVideoGeneration(
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: session.user.id },
-    include: { storyboards: true },
+    include: { scenes: true },
   });
   if (!project) return { error: "项目不存在" };
-  if (project.storyboards.length === 0) return { error: "请先生成分镜" };
+  if (project.scenes.length === 0) return { error: "请先生成分镜" };
 
-  const totalDuration = project.storyboards.reduce(
+  const totalDuration = project.scenes.reduce(
     (sum, s) => sum + s.duration,
     0
   );
@@ -32,8 +32,8 @@ export async function startVideoGeneration(
     },
   });
 
-  await prisma.videoClip.updateMany({
-    where: { storyboard: { projectId } },
+  await prisma.scene.updateMany({
+    where: { projectId },
     data: { status: "PROCESSING", progress: 0 },
   });
 
@@ -53,8 +53,8 @@ export async function startVideoGeneration(
 export async function simulateVideoCompletion(projectId: string) {
   const session = await requireAuth();
 
-  await prisma.videoClip.updateMany({
-    where: { storyboard: { projectId } },
+  await prisma.scene.updateMany({
+    where: { projectId },
     data: { status: "COMPLETED", progress: 100 },
   });
 

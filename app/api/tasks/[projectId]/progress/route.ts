@@ -34,9 +34,9 @@ export async function GET(
             where: { projectId },
             orderBy: { createdAt: "desc" },
           });
-          const clips = await prisma.videoClip.findMany({
-            where: { storyboard: { projectId } },
-            include: { storyboard: { select: { sceneNumber: true } } },
+          const scenes = await prisma.scene.findMany({
+            where: { projectId },
+            orderBy: { sceneNumber: "asc" },
           });
 
           send({
@@ -48,18 +48,18 @@ export async function GET(
                   videoUrl: video.videoUrl,
                 }
               : null,
-            clips: clips.map((c) => ({
-              id: c.id,
-              sceneNumber: c.storyboard.sceneNumber,
-              status: c.status,
-              progress: c.progress,
+            scenes: scenes.map((s) => ({
+              id: s.id,
+              sceneNumber: s.sceneNumber,
+              status: s.status,
+              progress: s.progress,
             })),
           });
         } catch {
           send({
             type: "progress",
             video: null,
-            clips: [],
+            scenes: [],
           });
         }
       }, 2000);

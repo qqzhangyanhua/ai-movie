@@ -1,83 +1,236 @@
 "use client";
 
-import { useState } from "react";
-import { KeyRound, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ServiceConfigForm } from "./ServiceConfigForm";
+import { ServiceConfigList } from "./ServiceConfigList";
+import { getServiceConfigs } from "@/lib/actions/service-config";
+import { ServiceType } from "@prisma/client";
+import type { ServiceConfigOutput } from "@/types/service-config";
 
 export function AiConfigSection() {
-  const [apiKey, setApiKey] = useState("");
-  const [maskedKey, setMaskedKey] = useState("sk-****");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [configs, setConfigs] = useState<ServiceConfigOutput[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [currentType, setCurrentType] = useState<ServiceType>("LLM");
 
-  async function handleSaveApiKey(e: React.FormEvent) {
-    e.preventDefault();
-    if (!apiKey.trim()) return;
-    setSaving(true);
-    setSaved(false);
+  useEffect(() => {
+    loadConfigs();
+  }, []);
+
+  async function loadConfigs() {
     try {
-      // 当前简化为展示 UI，实际存储需加密
-      // 这里仅做占位，不真正写入数据库
-      await new Promise((r) => setTimeout(r, 500));
-      setMaskedKey(`sk-****${apiKey.slice(-4)}`);
-      setApiKey("");
-      setSaved(true);
+      setLoading(true);
+      const data = await getServiceConfigs();
+      setConfigs(data);
+    } catch (error) {
+      console.error("Failed to load configs:", error);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   }
+
+  function handleTabChange(value: string) {
+    setCurrentType(value as ServiceType);
+    setShowForm(false);
+  }
+
+  const filteredConfigs = configs.filter((c) => c.type === currentType);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <KeyRound className="size-5" />
-          OpenAI API Key
-        </CardTitle>
+        <CardTitle>服务配置中心</CardTitle>
         <CardDescription>
-          配置您的 OpenAI API Key 可不受免费额度限制
+          配置 AI 服务、视频生成、存储等第三方服务
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <form onSubmit={handleSaveApiKey} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="apiKey">API Key</Label>
-            <Input
-              id="apiKey"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={maskedKey}
-              autoComplete="off"
-              className="max-w-md font-mono"
-            />
-            <p className="text-xs text-muted-foreground">
-              已保存的 Key 会显示为：{maskedKey}
-            </p>
-          </div>
-          <Button type="submit" disabled={saving || !apiKey.trim()}>
-            {saving ? "保存中..." : "保存 API Key"}
-          </Button>
-          {saved && (
-            <p className="text-sm text-green-600">API Key 已保存（仅 UI 演示）</p>
-          )}
-        </form>
+      <CardContent>
+        <Tabs value={currentType} onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="LLM">AI 模型</TabsTrigger>
+            <TabsTrigger value="VIDEO_GENERATION">视频生成</TabsTrigger>
+            <TabsTrigger value="STORAGE">存储服务</TabsTrigger>
+            <TabsTrigger value="TTS">语音合成</TabsTrigger>
+          </TabsList>
 
-        <div className="flex gap-2 rounded-lg border border-muted bg-muted/50 p-4">
-          <Info className="size-5 shrink-0 text-muted-foreground" />
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p>
-              配置自己的 API Key 可以不受免费额度限制，使用更多 AI 功能。
-            </p>
-            <p className="text-xs">
-              注意：当前为 UI 演示，实际存储需加密。请勿在生产环境输入真实
-              API Key，除非已实现安全存储。
-            </p>
-          </div>
-        </div>
+          <TabsContent value="LLM" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                配置 OpenAI、Claude 等 LLM 服务用于剧本生成
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setShowForm(!showForm)}
+                variant={showForm ? "outline" : "default"}
+              >
+                {showForm ? (
+                  <>
+                    <X className="mr-2 size-4" />
+                    取消
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 size-4" />
+                    添加配置
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showForm && (
+              <ServiceConfigForm
+                type="LLM"
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadConfigs();
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+
+            <ServiceConfigList
+              configs={filteredConfigs}
+              loading={loading}
+              onUpdate={loadConfigs}
+            />
+          </TabsContent>
+
+          <TabsContent value="VIDEO_GENERATION" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                配置 Runway、Luma、Pika 等视频生成服务
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setShowForm(!showForm)}
+                variant={showForm ? "outline" : "default"}
+              >
+                {showForm ? (
+                  <>
+                    <X className="mr-2 size-4" />
+                    取消
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 size-4" />
+                    添加配置
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showForm && (
+              <ServiceConfigForm
+                type="VIDEO_GENERATION"
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadConfigs();
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+
+            <ServiceConfigList
+              configs={filteredConfigs}
+              loading={loading}
+              onUpdate={loadConfigs}
+            />
+          </TabsContent>
+
+          <TabsContent value="STORAGE" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                配置 MinIO、AWS S3 等对象存储服务
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setShowForm(!showForm)}
+                variant={showForm ? "outline" : "default"}
+              >
+                {showForm ? (
+                  <>
+                    <X className="mr-2 size-4" />
+                    取消
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 size-4" />
+                    添加配置
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showForm && (
+              <ServiceConfigForm
+                type="STORAGE"
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadConfigs();
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+
+            <ServiceConfigList
+              configs={filteredConfigs}
+              loading={loading}
+              onUpdate={loadConfigs}
+            />
+          </TabsContent>
+
+          <TabsContent value="TTS" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                配置 OpenAI TTS、ElevenLabs 等语音合成服务
+              </p>
+              <Button
+                size="sm"
+                onClick={() => setShowForm(!showForm)}
+                variant={showForm ? "outline" : "default"}
+              >
+                {showForm ? (
+                  <>
+                    <X className="mr-2 size-4" />
+                    取消
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 size-4" />
+                    添加配置
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showForm && (
+              <ServiceConfigForm
+                type="TTS"
+                onSuccess={() => {
+                  setShowForm(false);
+                  loadConfigs();
+                }}
+                onCancel={() => setShowForm(false)}
+              />
+            )}
+
+            <ServiceConfigList
+              configs={filteredConfigs}
+              loading={loading}
+              onUpdate={loadConfigs}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

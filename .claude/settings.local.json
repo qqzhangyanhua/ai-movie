@@ -13,7 +13,14 @@
       "Bash(pnpm dlx:*)",
       "Bash(printf \\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n:*)",
       "Bash(/Users/zhangyanhua/AI/ai-movie/frontend/src/lib/utils.ts:*)",
-      "mcp__ide__executeCode"
+      "mcp__ide__executeCode",
+      "Bash(npx prisma:*)",
+      "Bash(npx shadcn@latest:*)",
+      "mcp__augment-context-engine__codebase-retrieval",
+      "Bash(/tmp/ccg_context.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(pnpm prisma:*)",
+      "Bash(pnpm tsc:*)"
     ]
   }
 }

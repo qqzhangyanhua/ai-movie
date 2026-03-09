@@ -3,7 +3,6 @@
 import json
 import logging
 from openai import OpenAI
-from config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +31,33 @@ SYSTEM_PROMPT = """你是一位专业的微电影编剧。根据用户描述和�
 }"""
 
 
-def generate_script(prompt: str, characters: list[dict]) -> dict:
-    """Generate a structured script using OpenAI API.
+def generate_script(prompt: str, characters: list[dict], llm_config: dict | None = None) -> dict:
+    """Generate a structured script using LLM API.
 
-    Falls back to mock data if API key is not configured or call fails.
+    Args:
+        prompt: User's script description
+        characters: List of character info dicts
+        llm_config: LLM configuration from service config (optional)
+
+    Falls back to mock data if config is not provided or call fails.
     """
-    if not OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY not set, using mock script")
+    if not llm_config or not llm_config.get("apiKey"):
+        logger.warning("LLM config not provided, using mock script")
         return _mock_script(prompt, characters)
 
     try:
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        api_key = llm_config["apiKey"]
+        base_url = llm_config.get("baseUrl")
+        model = llm_config.get("model", "gpt-4o-mini")
+        config = llm_config.get("config", {})
+        temperature = config.get("temperature", 0.8)
+        max_tokens = config.get("maxTokens", 2000)
+
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+
+        client = OpenAI(**client_kwargs)
 
         char_descriptions = []
         for c in characters:
@@ -63,13 +78,13 @@ def generate_script(prompt: str, characters: list[dict]) -> dict:
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
-            temperature=0.8,
-            max_tokens=2000,
+            temperature=temperature,
+            max_tokens=max_tokens,
             response_format={"type": "json_object"},
         )
 

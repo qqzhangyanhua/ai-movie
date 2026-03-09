@@ -1,4 +1,7 @@
+"use client";
+
 import { Upload, FileText, Layout, Video, Share } from "lucide-react";
+import { motion } from "framer-motion";
 
 const steps = [
   {
@@ -35,38 +38,60 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="relative border-t border-slate-800/50 bg-slate-950 px-6 py-24">
-      <div className="mx-auto max-w-4xl">
-        <h2 className="mb-4 text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          创作流程
-        </h2>
-        <p className="mx-auto mb-16 max-w-2xl text-center text-slate-400">
-          五步完成你的专属微电影
-        </p>
-        <div className="space-y-0">
+    <section className="relative border-t border-white/[0.08] bg-[#0A0A0A] px-6 py-24">
+      <div className="mx-auto max-w-4xl relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ type: "spring", stiffness: 60, damping: 20 }}
+          className="text-center"
+        >
+          <h2 className="mb-4 text-center text-3xl font-medium tracking-tight text-white sm:text-4xl font-serif">
+            创作流程
+          </h2>
+          <p className="mx-auto mb-16 max-w-2xl text-center text-gray-400">
+            五步完成你的专属微电影
+          </p>
+        </motion.div>
+
+        <div className="space-y-0 relative">
+          {/* Animated vertical connecting line */}
+          <motion.div
+            initial={{ height: 0 }}
+            whileInView={{ height: "100%" }}
+            viewport={{ once: true, margin: "-200px" }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="absolute left-[23px] top-6 bottom-6 w-px bg-gradient-to-b from-[#D4AF37]/50 via-white/10 to-transparent hidden sm:block"
+          />
+
           {steps.map((item, i) => (
-            <div
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ type: "spring", stiffness: 50, damping: 20, delay: i * 0.1 }}
               key={item.step}
-              className="flex flex-col gap-6 sm:flex-row sm:items-start"
+              className="group flex flex-col gap-6 sm:flex-row sm:items-start relative z-10"
             >
               <div className="flex shrink-0 items-start gap-4 sm:flex-col sm:items-center">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 ring-2 ring-indigo-500/30">
-                  <item.icon className="size-6" />
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#111111] text-gray-300 ring-1 ring-white/10 transition-colors group-hover:ring-[#D4AF37]/50 group-hover:text-[#D4AF37] shadow-xl">
+                  <item.icon className="size-5" />
                 </div>
                 {i < steps.length - 1 && (
-                  <div className="ml-6 h-8 w-px bg-slate-700 sm:ml-0 sm:h-12 sm:w-px" />
+                  <div className="ml-6 h-8 w-px bg-white/10 sm:hidden" />
                 )}
               </div>
-              <div className="flex-1 pb-12 sm:pb-8">
-                <span className="mb-2 inline-block text-sm font-medium text-indigo-400">
+              <div className="flex-1 pb-12 sm:pb-16 pt-2">
+                <span className="mb-2 inline-block text-xs uppercase tracking-widest font-medium text-[#D4AF37]">
                   步骤 {item.step}
                 </span>
-                <h3 className="mb-2 text-xl font-semibold text-white">
+                <h3 className="mb-2 text-xl font-medium text-white transition-colors group-hover:text-gray-200">
                   {item.title}
                 </h3>
-                <p className="text-slate-400">{item.description}</p>
+                <p className="text-gray-400">{item.description}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

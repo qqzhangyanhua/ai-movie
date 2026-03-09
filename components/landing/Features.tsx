@@ -1,4 +1,7 @@
+"use client";
+
 import { Film, Users, Sparkles, Share2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const features = [
   {
@@ -24,39 +27,66 @@ const features = [
 ];
 
 export function Features() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 60, damping: 20 } },
+  };
+
   return (
     <section
       id="features"
-      className="relative scroll-mt-24 border-t border-slate-800/50 bg-slate-950/50 px-6 py-24"
+      className="relative scroll-mt-24 border-t border-white/[0.08] bg-[#0A0A0A] px-6 py-24"
     >
-      <div className="mx-auto max-w-6xl">
-        <h2 className="mb-4 text-center text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          为什么选择 AI 微电影
-        </h2>
-        <p className="mx-auto mb-16 max-w-2xl text-center text-slate-400">
-          用最简单的方式，创作属于你的电影故事
-        </p>
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto max-w-6xl relative z-10">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+          className="text-center"
+        >
+          <motion.h2 variants={itemVariants} className="mb-4 text-center text-3xl font-medium tracking-tight text-white sm:text-4xl font-serif">
+            为什么选择 AI 微电影
+          </motion.h2>
+          <motion.p variants={itemVariants} className="mx-auto mb-16 max-w-2xl text-center text-gray-400">
+            用最简单的方式，创作属于你的电影故事
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4"
+        >
           {features.map((feature, i) => (
-            <div
+            <motion.div
+              variants={itemVariants}
               key={feature.title}
-              className="group relative overflow-hidden rounded-2xl border border-slate-800/50 bg-slate-900/30 p-6 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/30 hover:bg-slate-900/50 hover:shadow-xl hover:shadow-indigo-500/5"
-              style={{
-                animationDelay: `${i * 100}ms`,
-              }}
+              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-[#111111] p-6 backdrop-blur-sm transition-all duration-300 hover:border-[#D4AF37]/30 hover:bg-[#161616] hover:shadow-2xl hover:shadow-[#D4AF37]/5"
             >
-              <div className="mb-4 inline-flex rounded-xl bg-indigo-500/10 p-3 text-indigo-400 transition-colors group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+              <div className="mb-4 inline-flex rounded-xl bg-white/5 p-3 text-white transition-colors group-hover:bg-[#D4AF37]/10 group-hover:text-[#D4AF37]">
                 <feature.icon className="size-6" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-white">
+              <h3 className="mb-2 text-lg font-medium text-white">
                 {feature.title}
               </h3>
-              <p className="text-sm leading-relaxed text-slate-400">
+              <p className="text-sm leading-relaxed text-gray-400">
                 {feature.description}
               </p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

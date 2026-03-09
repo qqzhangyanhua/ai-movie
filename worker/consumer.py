@@ -14,7 +14,7 @@ from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
 from services.poster_service import generate_poster
-from utils.ffmpeg_compose import compose_video
+from utils.ffmpeg_compose import compose_video, compose_video_from_clips
 from services.character_service import generate_character_embedding, generate_character_views
 from services.voice_service import generate_scene_voiceovers
 from services.music_service import generate_project_bgm
@@ -58,10 +58,12 @@ def handle_script_generate(r: redis.Redis, conn, payload: dict) -> None:
     project_id = payload.get("projectId", "")
     publish_progress(r, project_id, "processing", {"step": "generating"})
 
-    prompt = (payload.get("data") or {}).get("prompt", "")
-    characters = (payload.get("data") or {}).get("characters", [])
+    data = payload.get("data") or {}
+    prompt = data.get("prompt", "")
+    characters = data.get("characters", [])
+    llm_config = data.get("llmConfig")
 
-    script_data = generate_script(prompt, characters)
+    script_data = generate_script(prompt, characters, llm_config)
     scenes = script_data.get("scenes", [])
     title = script_data.get("title", prompt[:20] if prompt else "AI 微电影")
     metadata = json.dumps({"title": title})
@@ -475,9 +477,136 @@ def handle_music_generate(r: redis.Redis, conn, payload: dict) -> None:
     publish_progress(r, project_id, "completed", {"bgmUrl": bgm_url})
 
 
+def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle video:generate task. Generates video clips for all scenes."""
+    project_id = payload.get("projectId", "")
+    video_id = payload.get("videoId", "")
+    data = payload.get("data") or {}
+    scenes = data.get("scenes", [])
+    characters = data.get("characters", [])
+    video_gen_config = data.get("videoGenConfig", {})
+    storage_config = data.get("storageConfig", {})
+
+    if not scenes:
+        logger.error("No scenes provided for video generation")
+        if conn and video_id:
+            try:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    UPDATE "Video" SET status = 'FAILED', "errorMessage" = %s
+                    WHERE id = %s
+                    """,
+                    ("No scenes provided", video_id),
+                )
+                conn.commit()
+                cur.close()
+            except Exception as e:
+                logger.error("DB update failed: %s", e)
+        return
+
+    publish_progress(r, project_id, "processing", {"step": "generating_clips", "total": len(scenes)})
+
+    clip_urls = []
+    for i, scene in enumerate(scenes):
+        try:
+            publish_progress(
+                r,
+                project_id,
+                "processing",
+                {"step": "generating_clip", "current": i + 1, "total": len(scenes)},
+            )
+
+            video_url = generate_video_clip(scene, characters, video_gen_config)
+            if video_url:
+                clip_urls.append(video_url)
+
+            if conn and video_id:
+                progress = int((i + 1) / len(scenes) * 80)
+                try:
+                    cur = conn.cursor()
+                    cur.execute(
+                        """
+                        UPDATE "Video" SET progress = %s, status = 'PROCESSING'
+                        WHERE id = %s
+                        """,
+                        (progress, video_id),
+                    )
+                    conn.commit()
+                    cur.close()
+                except Exception as e:
+                    logger.error("DB update failed: %s", e)
+
+        except Exception as e:
+            logger.error(f"Failed to generate clip for scene {i + 1}: {e}")
+            clip_urls.append(None)
+
+    if not any(clip_urls):
+        logger.error("All video clips failed to generate")
+        if conn and video_id:
+            try:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    UPDATE "Video" SET status = 'FAILED', "errorMessage" = %s
+                    WHERE id = %s
+                    """,
+                    ("All video clips failed to generate", video_id),
+                )
+                conn.commit()
+                cur.close()
+            except Exception as e:
+                logger.error("DB update failed: %s", e)
+        return
+
+    publish_progress(
+        r,
+        project_id,
+        "processing",
+        {"step": "composing", "clips": len([c for c in clip_urls if c])},
+    )
+
+    final_video_url = compose_video_from_clips(clip_urls, storage_config)
+
+    if conn and video_id:
+        try:
+            cur = conn.cursor()
+            if final_video_url:
+                cur.execute(
+                    """
+                    UPDATE "Video" SET status = 'COMPLETED', "videoUrl" = %s, progress = 100
+                    WHERE id = %s
+                    """,
+                    (final_video_url, video_id),
+                )
+                cur.execute(
+                    """
+                    UPDATE "Project" SET status = 'COMPLETED'
+                    WHERE id = %s
+                    """,
+                    (project_id,),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE "Video" SET status = 'FAILED', "errorMessage" = %s
+                    WHERE id = %s
+                    """,
+                    ("Video composition failed", video_id),
+                )
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            logger.error("DB update failed: %s", e)
+            conn.rollback()
+
+    publish_progress(r, project_id, "completed", {"videoUrl": final_video_url})
+
+
 HANDLERS = {
     "script:generate": handle_script_generate,
     "video:compose": handle_video_compose,
+    "video:generate": handle_video_generate,
     "character:generate": handle_character_generate,
     "video:clip": handle_video_clip,
     "storyboard:preview": handle_storyboard_preview,

@@ -18,7 +18,3 @@ export default auth((req) => {
     return Response.redirect(new URL("/dashboard", req.nextUrl));
   }
 });
-
-export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-};

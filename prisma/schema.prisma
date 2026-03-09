@@ -35,19 +35,25 @@ enum TaskStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  username      String
-  passwordHash  String
-  plan          Plan      @default(FREE)
-  avatarUrl     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  email           String   @unique
+  username        String
+  passwordHash    String
+  plan            Plan     @default(FREE)
+  videosRemaining Int      @default(3)
+  videosUsed      Int      @default(0)
+  storageUsed     Int      @default(0)
+  storageLimit    Int      @default(100)
+  maxResolution   String   @default("720p")
+  quotaResetAt    DateTime @default(now())
+  avatarUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  projects      Project[]
-  characters    Character[]
-  accounts      Account[]
-  sessions      Session[]
+  projects   Project[]
+  characters Character[]
+  accounts   Account[]
+  sessions   Session[]
 }
 
 model Account {
@@ -88,98 +94,86 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  characters  ProjectCharacter[]
-  script      Script?
-  storyboards Storyboard[]
-  videos      Video[]
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characters ProjectCharacter[]
+  scenes     Scene[]
+  script     Script?
+  videos     Video[]
 }
 
 model Character {
-  id            String    @id @default(cuid())
-  userId        String
-  name          String
-  photoUrl      String
-  frontViewUrl  String?
-  sideViewUrl   String?
-  backViewUrl   String?
-  embedding     Bytes?
-  personality   String?
-  style         String?
-  createdAt     DateTime  @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  photoUrl    String
+  personality String?
+  style       String?
+  createdAt   DateTime @default(now())
 
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projects      ProjectCharacter[]
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects ProjectCharacter[]
 }
 
 model ProjectCharacter {
-  id           String    @id @default(cuid())
+  id           String  @id @default(cuid())
   projectId    String
   characterId  String
   relationship String?
   roleName     String?
 
-  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  character    Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, characterId])
 }
 
 model Script {
-  id          String     @id @default(cuid())
-  projectId   String     @unique
-  type        ScriptType
-  content     Json
-  metadata    Json?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(cuid())
+  projectId String     @unique
+  type      ScriptType
+  content   Json
+  metadata  Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model Storyboard {
-  id           String    @id @default(cuid())
+model Scene {
+  id           String     @id @default(cuid())
   projectId    String
   sceneNumber  Int
   description  String
   characters   String[]
   action       String?
   cameraType   String?
-  duration     Int       @default(5)
+  duration     Int        @default(5)
+  videoUrl     String?
+  status       TaskStatus @default(PENDING)
+  progress     Int        @default(0)
+  errorMessage String?
   imageUrl     String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  videoClip    VideoClip?
-}
-
-model VideoClip {
-  id            String     @id @default(cuid())
-  storyboardId  String     @unique
-  videoUrl      String?
-  status        TaskStatus @default(PENDING)
-  progress      Int        @default(0)
-  errorMessage  String?
-  createdAt     DateTime   @default(now())
-
-  storyboard    Storyboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Video {
-  id            String     @id @default(cuid())
-  projectId     String
-  videoUrl      String?
-  posterUrl     String?
-  duration      Int?
-  resolution    String?
-  status        TaskStatus @default(PENDING)
-  progress      Int        @default(0)
-  subtitleUrl   String?
-  bgmUrl        String?
-  voiceoverUrl  String?
-  errorMessage  String?
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(cuid())
+  projectId    String
+  videoUrl     String?
+  posterUrl    String?
+  duration     Int?
+  resolution   String?
+  status       TaskStatus @default(PENDING)
+  progress     Int        @default(0)
+  subtitleUrl  String?
+  bgmUrl       String?
+  voiceoverUrl String?
+  errorMessage String?
+  createdAt    DateTime   @default(now())
 
-  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
+

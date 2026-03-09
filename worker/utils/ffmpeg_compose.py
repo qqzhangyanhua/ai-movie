@@ -190,3 +190,110 @@ def compose_video(
             pass
 
     return output_path
+
+
+def compose_video_from_clips(
+    clip_urls: list[str | None],
+    storage_config: dict,
+    bgm_url: str | None = None,
+) -> str | None:
+    """Compose final video from video clips with optional BGM.
+
+    Args:
+        clip_urls: List of video clip URLs (local paths or remote URLs)
+        storage_config: Storage configuration for uploading final video
+        bgm_url: Optional background music URL
+
+    Returns:
+        Final video URL or None if composition failed
+    """
+    valid_clips = [url for url in clip_urls if url and isinstance(url, str)]
+    if not valid_clips:
+        logger.error("No valid video clips provided")
+        return None
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            concat_file = f.name
+            for clip_url in valid_clips:
+                f.write(f"file '{clip_url}'\n")
+
+        output_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+
+        cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_file]
+
+        if bgm_url and os.path.exists(bgm_url):
+            cmd.extend(["-i", bgm_url])
+            cmd.extend([
+                "-filter_complex",
+                "[0:a]volume=1.0[v0];[1:a]volume=0.3[v1];[v0][v1]amix=inputs=2:duration=first[aout]",
+                "-map", "0:v",
+                "-map", "[aout]",
+            ])
+        else:
+            cmd.extend(["-c", "copy"])
+
+        cmd.extend([
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-movflags", "+faststart",
+            output_file,
+        ])
+
+        logger.info("Running FFmpeg: %s", " ".join(cmd))
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+        if result.returncode != 0:
+            logger.error("FFmpeg failed: %s", result.stderr[-500:])
+            return None
+
+        if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
+            logger.error("Output file not created or empty")
+            return None
+
+        final_url = _upload_to_storage(output_file, storage_config)
+
+        try:
+            os.unlink(concat_file)
+            os.unlink(output_file)
+        except OSError:
+            pass
+
+        return final_url
+
+    except Exception as e:
+        logger.exception("Video composition error: %s", e)
+        return None
+
+
+def _upload_to_storage(file_path: str, storage_config: dict) -> str | None:
+    """Upload file to storage service and return URL."""
+    try:
+        from boto3 import client as boto3_client
+
+        s3 = boto3_client(
+            "s3",
+            endpoint_url=storage_config.get("endpoint"),
+            aws_access_key_id=storage_config.get("accessKey"),
+            aws_secret_access_key=storage_config.get("secretKey"),
+            region_name=storage_config.get("region", "us-east-1"),
+        )
+
+        bucket = storage_config.get("bucket")
+        key = f"videos/{os.path.basename(file_path)}"
+
+        with open(file_path, "rb") as f:
+            s3.put_object(Bucket=bucket, Key=key, Body=f, ContentType="video/mp4")
+
+        url = f"{storage_config.get('endpoint')}/{bucket}/{key}"
+        logger.info("Uploaded video to: %s", url)
+        return url
+
+    except Exception as e:
+        logger.error("Failed to upload to storage: %s", e)
+        return None
+
