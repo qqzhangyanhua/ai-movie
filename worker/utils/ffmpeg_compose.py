@@ -10,6 +10,7 @@ Builds FFmpeg command to:
 
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -273,27 +274,65 @@ def compose_video_from_clips(
 def _upload_to_storage(file_path: str, storage_config: dict) -> str | None:
     """Upload file to storage service and return URL."""
     try:
+        endpoint = storage_config.get("endpoint")
+        bucket = storage_config.get("bucket")
+        access_key = storage_config.get("accessKey")
+        secret_key = storage_config.get("secretKey")
+        region = storage_config.get("region", "us-east-1")
+
+        if not endpoint or not bucket or not access_key or not secret_key:
+            return _save_to_local_public(file_path)
+
         from boto3 import client as boto3_client
 
         s3 = boto3_client(
             "s3",
-            endpoint_url=storage_config.get("endpoint"),
-            aws_access_key_id=storage_config.get("accessKey"),
-            aws_secret_access_key=storage_config.get("secretKey"),
-            region_name=storage_config.get("region", "us-east-1"),
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region,
         )
 
-        bucket = storage_config.get("bucket")
         key = f"videos/{os.path.basename(file_path)}"
+
+        try:
+            s3.head_bucket(Bucket=bucket)
+        except Exception:
+            create_kwargs = {"Bucket": bucket}
+            if region and region != "us-east-1":
+                create_kwargs["CreateBucketConfiguration"] = {
+                    "LocationConstraint": region,
+                }
+            s3.create_bucket(**create_kwargs)
 
         with open(file_path, "rb") as f:
             s3.put_object(Bucket=bucket, Key=key, Body=f, ContentType="video/mp4")
 
-        url = f"{storage_config.get('endpoint')}/{bucket}/{key}"
+        url = f"{endpoint}/{bucket}/{key}"
         logger.info("Uploaded video to: %s", url)
         return url
 
     except Exception as e:
         logger.error("Failed to upload to storage: %s", e)
+        return _save_to_local_public(file_path)
+
+
+def _save_to_local_public(file_path: str) -> str | None:
+    """Fallback to local public/uploads when object storage is unavailable."""
+    base_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "public", "uploads", "generated")
+    )
+    if not os.path.isdir(os.path.dirname(base_dir)):
+        logger.warning("Local public directory not found for fallback upload")
+        return None
+
+    try:
+        os.makedirs(base_dir, exist_ok=True)
+        filename = os.path.basename(file_path)
+        target_path = os.path.join(base_dir, filename)
+        shutil.copyfile(file_path, target_path)
+        return f"/uploads/generated/{filename}"
+    except Exception as e:
+        logger.error("Failed to save fallback local video: %s", e)
         return None
 

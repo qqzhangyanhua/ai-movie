@@ -1,6 +1,9 @@
 """Video generation service supporting multiple providers."""
 
 import logging
+import os
+import subprocess
+import tempfile
 import time
 import requests
 from typing import Optional
@@ -208,9 +211,18 @@ def _build_prompt(scene: dict, characters: list[dict]) -> str:
     }
     camera_en = camera_map.get(camera_type, "medium shot")
 
+    scene_character_names = scene.get("characters", [])
+    scoped_characters = characters
+    if isinstance(scene_character_names, list) and scene_character_names:
+        scoped_characters = [
+            character
+            for character in characters
+            if character.get("name") in scene_character_names
+        ] or characters
+
     char_desc = ""
-    if characters:
-        char_names = [c.get("name", "character") for c in characters]
+    if scoped_characters:
+        char_names = [c.get("name", "character") for c in scoped_characters]
         char_desc = f"Characters: {', '.join(char_names)}. "
 
     prompt = f"{char_desc}{description}. {action}. {camera_en}. Cinematic, high quality."
@@ -219,7 +231,40 @@ def _build_prompt(scene: dict, characters: list[dict]) -> str:
 
 
 def _generate_mock(scene: dict) -> str:
-    """Generate mock video URL for testing."""
-    logger.info(f"Using mock video for scene {scene.get('sceneNumber', 0)}")
-    return f"/uploads/mock-video-scene-{scene.get('sceneNumber', 0)}.mp4"
+    """Generate a local mock mp4 clip for testing and fallback flows."""
+    scene_number = scene.get("sceneNumber", 0)
+    duration = max(int(scene.get("duration", 5) or 5), 1)
+    output_path = os.path.join(
+        tempfile.gettempdir(),
+        f"aimovie_mock_scene_{scene_number}_{int(time.time() * 1000)}.mp4",
+    )
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c=#1f2937:s=1280x720:d={duration}",
+        "-vf",
+        "format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-t",
+        str(duration),
+        output_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode == 0 and os.path.exists(output_path):
+            logger.info("Using generated mock video for scene %s: %s", scene_number, output_path)
+            return output_path
+        logger.error("Mock video generation failed: %s", result.stderr[-500:])
+    except Exception as e:
+        logger.error("Mock video generation exception: %s", e)
+
+    return ""
 

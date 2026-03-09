@@ -1,12 +1,117 @@
-"""Character three-view generation service using DALL-E 3."""
+"""Character services for photo-driven role generation."""
 
+import base64
 import json
 import logging
+import mimetypes
+import os
 from openai import OpenAI
 
 from config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
+
+
+def _fallback_character(name_hint: str, photo_url: str) -> dict:
+    base_name = name_hint.strip() or "角色"
+    return {
+        "name": base_name,
+        "personality": "根据上传照片自动生成的角色，适合作为影片主角。",
+        "style": f"参考照片 {os.path.basename(photo_url) or base_name} 的外观特征。",
+    }
+
+
+def _photo_url_to_local_path(photo_url: str) -> str | None:
+    if not photo_url or not photo_url.startswith("/"):
+        return None
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    candidate = os.path.join(repo_root, "public", photo_url.lstrip("/").replace("/", os.sep))
+    return candidate if os.path.exists(candidate) else None
+
+
+def _local_image_to_data_url(file_path: str) -> str | None:
+    try:
+        mime_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+        with open(file_path, "rb") as image_file:
+            encoded = base64.b64encode(image_file.read()).decode()
+        return f"data:{mime_type};base64,{encoded}"
+    except Exception as e:
+        logger.error("Failed to encode image %s: %s", file_path, e)
+        return None
+
+
+def describe_character_from_photo(
+    photo_url: str,
+    name_hint: str,
+    project_context: str = "",
+) -> dict:
+    """Infer character summary from a local photo with OpenAI Vision.
+
+    Returns a dict with name/personality/style. Falls back to generic values
+    when OPENAI_API_KEY is unavailable or the image cannot be parsed.
+    """
+    fallback = _fallback_character(name_hint, photo_url)
+    if not OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY not set, using fallback character profile")
+        return fallback
+
+    local_path = _photo_url_to_local_path(photo_url)
+    if not local_path:
+        logger.warning("Photo %s is not accessible locally, using fallback character profile", photo_url)
+        return fallback
+
+    data_url = _local_image_to_data_url(local_path)
+    if not data_url:
+        return fallback
+
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "你是电影角色设定助手。请根据图片推断一个适合视频生成的角色摘要，"
+                        "仅输出 JSON，格式为 "
+                        '{"name":"角色名","personality":"一句性格描述","style":"一句外观/造型描述"}。'
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"项目上下文：{project_context or '无'}\n"
+                                f"角色名提示：{name_hint or '角色'}\n"
+                                "请生成简洁、可用于剧本和视频提示词的角色设定。"
+                            ),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url},
+                        },
+                    ],
+                },
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=300,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return fallback
+
+        parsed = json.loads(content)
+        return {
+            "name": (parsed.get("name") or fallback["name"]).strip()[:50],
+            "personality": (parsed.get("personality") or fallback["personality"]).strip()[:200],
+            "style": (parsed.get("style") or fallback["style"]).strip()[:200],
+        }
+    except Exception as e:
+        logger.error("Character photo analysis failed for %s: %s", photo_url, e)
+        return fallback
 
 
 def _generate_single_view(

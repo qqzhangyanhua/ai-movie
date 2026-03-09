@@ -9,13 +9,30 @@ from urllib.parse import urlparse
 import psycopg2
 import redis
 
-from config import DATABASE_URL, REDIS_URL
+from config import (
+    DATABASE_URL,
+    OPENAI_API_KEY,
+    REDIS_URL,
+    S3_ACCESS_KEY,
+    S3_BUCKET,
+    S3_ENDPOINT,
+    S3_REGION,
+    S3_SECRET_KEY,
+    VIDEO_API_KEY,
+    VIDEO_BASE_URL,
+    VIDEO_MODEL,
+    VIDEO_PROVIDER,
+)
 from services.llm_service import generate_script
 from services.video_service import generate_video_clip
 from services.image_service import generate_storyboard_preview
 from services.poster_service import generate_poster
 from utils.ffmpeg_compose import compose_video, compose_video_from_clips
-from services.character_service import generate_character_embedding, generate_character_views
+from services.character_service import (
+    describe_character_from_photo,
+    generate_character_embedding,
+    generate_character_views,
+)
 from services.voice_service import generate_scene_voiceovers
 from services.music_service import generate_project_bgm
 
@@ -51,6 +68,447 @@ def publish_progress(r: redis.Redis, project_id: str, status: str, data: dict | 
     payload = {"status": status, "data": data or {}}
     r.publish(channel, json.dumps(payload))
     logger.info("Progress %s -> %s: %s", project_id, status, payload)
+
+
+def _ensure_project_exists(conn, project_id: str) -> dict | None:
+    if not conn:
+        return None
+
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, "userId", title, description, "coverUrl"
+        FROM "Project"
+        WHERE id = %s
+        """,
+        (project_id,),
+    )
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return None
+
+    return {
+        "id": row[0],
+        "userId": row[1],
+        "title": row[2],
+        "description": row[3],
+        "coverUrl": row[4],
+    }
+
+
+def _ensure_project_characters(
+    conn,
+    project_id: str,
+    user_id: str,
+    photo_urls: list[str],
+    title: str,
+    description: str | None,
+) -> list[dict]:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT c.id, c.name, c."photoUrl", c.personality, c.style, pc."roleName"
+        FROM "ProjectCharacter" pc
+        JOIN "Character" c ON c.id = pc."characterId"
+        WHERE pc."projectId" = %s
+        ORDER BY c."createdAt" ASC
+        """,
+        (project_id,),
+    )
+    existing_rows = cur.fetchall()
+    if existing_rows:
+        cur.close()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "photoUrl": row[2],
+                "personality": row[3] or "",
+                "style": row[4] or "",
+                "roleName": row[5] or row[1],
+            }
+            for row in existing_rows
+        ]
+
+    characters = []
+    project_context = f"标题：{title}；描述：{description or '无'}"
+    for index, photo_url in enumerate(photo_urls):
+        fallback_name = f"角色{index + 1}"
+        profile = describe_character_from_photo(photo_url, fallback_name, project_context)
+
+        cur.execute(
+            """
+            SELECT id, name, "photoUrl", personality, style
+            FROM "Character"
+            WHERE "userId" = %s AND "photoUrl" = %s
+            LIMIT 1
+            """,
+            (user_id, photo_url),
+        )
+        character_row = cur.fetchone()
+
+        if character_row:
+            character_id = character_row[0]
+            cur.execute(
+                """
+                UPDATE "Character"
+                SET name = %s, personality = %s, style = %s
+                WHERE id = %s
+                """,
+                (
+                    profile["name"],
+                    profile["personality"],
+                    profile["style"],
+                    character_id,
+                ),
+            )
+            name = profile["name"]
+            personality = profile["personality"]
+            style = profile["style"]
+        else:
+            character_id = str(uuid.uuid4())
+            name = profile["name"]
+            personality = profile["personality"]
+            style = profile["style"]
+            cur.execute(
+                """
+                INSERT INTO "Character" (
+                    id, "userId", name, "photoUrl", personality, style, "createdAt"
+                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (
+                    character_id,
+                    user_id,
+                    name,
+                    photo_url,
+                    personality,
+                    style,
+                ),
+            )
+
+        cur.execute(
+            """
+            INSERT INTO "ProjectCharacter" (
+                id, "projectId", "characterId", relationship, "roleName"
+            ) VALUES (%s, %s, %s, NULL, %s)
+            ON CONFLICT ("projectId", "characterId") DO UPDATE SET
+                "roleName" = EXCLUDED."roleName"
+            """,
+            (str(uuid.uuid4()), project_id, character_id, name),
+        )
+
+        characters.append(
+            {
+                "id": character_id,
+                "name": name,
+                "photoUrl": photo_url,
+                "personality": personality or "",
+                "style": style or "",
+                "roleName": name,
+            }
+        )
+
+    conn.commit()
+    cur.close()
+    return characters
+
+
+def _save_script(conn, project_id: str, script_data: dict, photo_urls: list[str], characters: list[dict]) -> None:
+    cur = conn.cursor()
+    metadata = json.dumps(
+        {
+            "title": script_data.get("title") or "AI Movie",
+            "photoUrls": photo_urls,
+            "characters": [
+                {
+                    "name": character.get("name", ""),
+                    "personality": character.get("personality", ""),
+                    "style": character.get("style", ""),
+                    "photoUrl": character.get("photoUrl", ""),
+                }
+                for character in characters
+            ],
+        }
+    )
+    content = json.dumps(script_data.get("scenes", []))
+
+    cur.execute(
+        """
+        INSERT INTO "Script" (id, "projectId", type, content, metadata)
+        VALUES (%s, %s, 'AI_GENERATED', %s::jsonb, %s::jsonb)
+        ON CONFLICT ("projectId") DO UPDATE SET
+            type = EXCLUDED.type,
+            content = EXCLUDED.content,
+            metadata = EXCLUDED.metadata,
+            "updatedAt" = NOW()
+        """,
+        (str(uuid.uuid4()), project_id, content, metadata),
+    )
+    cur.execute(
+        """
+        UPDATE "Project"
+        SET status = 'SCRIPT_READY', "updatedAt" = NOW()
+        WHERE id = %s
+        """,
+        (project_id,),
+    )
+    conn.commit()
+    cur.close()
+
+
+def _replace_scenes(
+    conn,
+    project_id: str,
+    scenes: list[dict],
+    photo_urls: list[str],
+    characters: list[dict],
+) -> int:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        DELETE FROM "Scene"
+        WHERE "projectId" = %s
+        """,
+        (project_id,),
+    )
+
+    total_duration = 0
+    fallback_character_names = [character.get("name", "") for character in characters if character.get("name")]
+    for index, scene in enumerate(scenes):
+        duration = int(scene.get("duration", 5) or 5)
+        total_duration += duration
+        image_url = photo_urls[index % len(photo_urls)] if photo_urls else None
+        raw_scene_characters = scene.get("characters", [])
+        scene_characters = (
+            [str(name).strip() for name in raw_scene_characters if str(name).strip()]
+            if isinstance(raw_scene_characters, list)
+            else []
+        )
+        if not scene_characters:
+            scene_characters = fallback_character_names[:1] if fallback_character_names else ["主角"]
+        cur.execute(
+            """
+            INSERT INTO "Scene" (
+                id, "projectId", "sceneNumber", description, characters,
+                action, "cameraType", duration, "videoUrl", status, progress,
+                "errorMessage", "imageUrl", "createdAt", "updatedAt"
+            ) VALUES (
+                %s, %s, %s, %s, %s::text[], %s, %s, %s, %s, 'COMPLETED', 100,
+                NULL, %s, NOW(), NOW()
+            )
+            """,
+            (
+                str(uuid.uuid4()),
+                project_id,
+                int(scene.get("sceneNumber", index + 1) or index + 1),
+                scene.get("description", ""),
+                scene_characters,
+                scene.get("action", ""),
+                scene.get("cameraType", "中景"),
+                duration,
+                image_url,
+                image_url,
+            ),
+        )
+
+    cur.execute(
+        """
+        UPDATE "Project"
+        SET status = 'STORYBOARD_READY', "updatedAt" = NOW()
+        WHERE id = %s
+        """,
+        (project_id,),
+    )
+    conn.commit()
+    cur.close()
+    return total_duration
+
+
+def _create_video_record(conn, project_id: str, total_duration: int, cover_url: str | None) -> str:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        DELETE FROM "Video"
+        WHERE "projectId" = %s AND status IN ('PENDING', 'PROCESSING', 'FAILED')
+        """,
+        (project_id,),
+    )
+
+    video_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO "Video" (
+            id, "projectId", "videoUrl", "posterUrl", duration, resolution,
+            status, progress, "subtitleUrl", "bgmUrl", "voiceoverUrl",
+            "errorMessage", "createdAt"
+        ) VALUES (
+            %s, %s, NULL, %s, %s, %s, 'PENDING', 0, NULL, NULL, NULL, NULL, NOW()
+        )
+        """,
+        (
+            video_id,
+            project_id,
+            cover_url,
+            total_duration,
+            "1080p",
+        ),
+    )
+    conn.commit()
+    cur.close()
+    return video_id
+
+
+def _set_project_status(conn, project_id: str, status: str) -> None:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE "Project"
+        SET status = %s, "updatedAt" = NOW()
+        WHERE id = %s
+        """,
+        (status, project_id),
+    )
+    conn.commit()
+    cur.close()
+
+
+def _build_env_video_config() -> dict:
+    config = {"provider": VIDEO_PROVIDER}
+    if VIDEO_API_KEY:
+        config["apiKey"] = VIDEO_API_KEY
+    if VIDEO_BASE_URL:
+        config["baseUrl"] = VIDEO_BASE_URL
+    if VIDEO_MODEL:
+        config["model"] = VIDEO_MODEL
+    return config
+
+
+def _build_env_storage_config() -> dict:
+    return {
+        "endpoint": S3_ENDPOINT,
+        "bucket": S3_BUCKET,
+        "region": S3_REGION,
+        "accessKey": S3_ACCESS_KEY,
+        "secretKey": S3_SECRET_KEY,
+    }
+
+
+def build_photo_context_prompt(prompt: str, characters: list[dict], photo_urls: list[str]) -> str:
+    character_lines = []
+    for index, character in enumerate(characters, start=1):
+        parts = [f"{index}. {character.get('name', f'角色{index}')}"]
+        if character.get("personality"):
+            parts.append(f"性格：{character['personality']}")
+        if character.get("style"):
+            parts.append(f"外观：{character['style']}")
+        character_lines.append("，".join(parts))
+
+    photo_line = f"共上传 {len(photo_urls)} 张照片。" if photo_urls else "未上传照片。"
+    if character_lines:
+        return (
+            f"{prompt}\n\n"
+            f"{photo_line}\n"
+            "请优先围绕这些角色组织剧情与镜头：\n"
+            + "\n".join(character_lines)
+        )
+    return f"{prompt}\n\n{photo_line}"
+
+
+def _mark_project_failed(conn, project_id: str, error_message: str) -> None:
+    if not conn:
+        return
+
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE "Project"
+        SET status = 'FAILED', "updatedAt" = NOW()
+        WHERE id = %s
+        """,
+        (project_id,),
+    )
+    cur.execute(
+        """
+        UPDATE "Video"
+        SET status = 'FAILED', "errorMessage" = %s
+        WHERE "projectId" = %s AND status IN ('PENDING', 'PROCESSING')
+        """,
+        (error_message[:500], project_id),
+    )
+    conn.commit()
+    cur.close()
+
+
+def handle_quick_create(r: redis.Redis, conn, payload: dict) -> None:
+    """Handle quick-create task end-to-end in worker."""
+    project_id = payload.get("projectId", "")
+    data = payload.get("data") or {}
+    photo_urls = data.get("photoUrls", []) or []
+
+    if not conn:
+        logger.error("DB connection unavailable for quick-create task")
+        publish_progress(r, project_id, "failed", {"message": "database unavailable"})
+        return
+
+    try:
+        project = _ensure_project_exists(conn, project_id)
+        if not project:
+            raise ValueError("Project not found")
+
+        publish_progress(r, project_id, "processing", {"step": "characters"})
+
+        characters = _ensure_project_characters(
+            conn,
+            project_id,
+            project["userId"],
+            photo_urls,
+            project["title"],
+            project["description"],
+        )
+
+        publish_progress(r, project_id, "processing", {"step": "script"})
+
+        prompt = data.get("prompt") or project.get("description") or project.get("title") or ""
+        llm_config = {"apiKey": OPENAI_API_KEY} if OPENAI_API_KEY else None
+        prompt_with_photo_context = build_photo_context_prompt(prompt, characters, photo_urls)
+        script_data = generate_script(prompt_with_photo_context, characters, llm_config)
+        _save_script(conn, project_id, script_data, photo_urls, characters)
+
+        publish_progress(r, project_id, "processing", {"step": "storyboard"})
+
+        scenes = script_data.get("scenes", [])
+        total_duration = _replace_scenes(conn, project_id, scenes, photo_urls, characters)
+        video_id = _create_video_record(conn, project_id, total_duration, project.get("coverUrl"))
+        _set_project_status(conn, project_id, "GENERATING")
+
+        publish_progress(
+            r,
+            project_id,
+            "processing",
+            {"step": "video", "sceneCount": len(scenes), "duration": total_duration},
+        )
+
+        handle_video_generate(
+            r,
+            conn,
+            {
+                "projectId": project_id,
+                "videoId": video_id,
+                "userId": payload.get("userId", ""),
+                "data": {
+                    "scenes": scenes,
+                    "characters": characters,
+                    "videoGenConfig": _build_env_video_config(),
+                    "storageConfig": _build_env_storage_config(),
+                },
+            },
+        )
+    except Exception as e:
+        logger.exception("Quick-create pipeline failed: %s", e)
+        conn.rollback()
+        _mark_project_failed(conn, project_id, str(e))
+        publish_progress(r, project_id, "failed", {"message": str(e)})
 
 
 def handle_script_generate(r: redis.Redis, conn, payload: dict) -> None:
@@ -482,6 +940,8 @@ def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
     project_id = payload.get("projectId", "")
     video_id = payload.get("videoId", "")
     data = payload.get("data") or {}
+    if not video_id:
+        video_id = data.get("videoId", "")
     scenes = data.get("scenes", [])
     characters = data.get("characters", [])
     video_gen_config = data.get("videoGenConfig", {})
@@ -499,10 +959,18 @@ def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
                     """,
                     ("No scenes provided", video_id),
                 )
+                cur.execute(
+                    """
+                    UPDATE "Project" SET status = 'FAILED', "updatedAt" = NOW()
+                    WHERE id = %s
+                    """,
+                    (project_id,),
+                )
                 conn.commit()
                 cur.close()
             except Exception as e:
                 logger.error("DB update failed: %s", e)
+        publish_progress(r, project_id, "failed", {"message": "No scenes provided"})
         return
 
     publish_progress(r, project_id, "processing", {"step": "generating_clips", "total": len(scenes)})
@@ -553,10 +1021,18 @@ def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
                     """,
                     ("All video clips failed to generate", video_id),
                 )
+                cur.execute(
+                    """
+                    UPDATE "Project" SET status = 'FAILED', "updatedAt" = NOW()
+                    WHERE id = %s
+                    """,
+                    (project_id,),
+                )
                 conn.commit()
                 cur.close()
             except Exception as e:
                 logger.error("DB update failed: %s", e)
+        publish_progress(r, project_id, "failed", {"message": "All video clips failed to generate"})
         return
 
     publish_progress(
@@ -581,7 +1057,7 @@ def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
                 )
                 cur.execute(
                     """
-                    UPDATE "Project" SET status = 'COMPLETED'
+                    UPDATE "Project" SET status = 'COMPLETED', "updatedAt" = NOW()
                     WHERE id = %s
                     """,
                     (project_id,),
@@ -594,16 +1070,27 @@ def handle_video_generate(r: redis.Redis, conn, payload: dict) -> None:
                     """,
                     ("Video composition failed", video_id),
                 )
+                cur.execute(
+                    """
+                    UPDATE "Project" SET status = 'FAILED', "updatedAt" = NOW()
+                    WHERE id = %s
+                    """,
+                    (project_id,),
+                )
             conn.commit()
             cur.close()
         except Exception as e:
             logger.error("DB update failed: %s", e)
             conn.rollback()
 
-    publish_progress(r, project_id, "completed", {"videoUrl": final_video_url})
+    if final_video_url:
+        publish_progress(r, project_id, "completed", {"videoUrl": final_video_url})
+    else:
+        publish_progress(r, project_id, "failed", {"message": "Video composition failed"})
 
 
 HANDLERS = {
+    "quick-create": handle_quick_create,
     "script:generate": handle_script_generate,
     "video:compose": handle_video_compose,
     "video:generate": handle_video_generate,
