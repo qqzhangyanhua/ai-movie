@@ -1,16 +1,19 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-utils";
 import { prisma } from "@/lib/prisma";
-import { Queue } from "bullmq";
-import { revalidatePath } from "next/cache";
+import { enqueueTask } from "@/lib/queue";
 
-const queue = new Queue("ai-tasks", {
-  connection: {
-    host: process.env.REDIS_HOST || "localhost",
-    port: parseInt(process.env.REDIS_PORT || "6379"),
-  },
-});
+type ScriptScene = {
+  sceneNumber: number;
+  description: string;
+  characters?: string[];
+  action?: string;
+  cameraType?: string;
+  duration: number;
+  dialogue?: string;
+};
 
 export async function generateVideo(projectId: string) {
   const session = await requireAuth();
@@ -35,43 +38,7 @@ export async function generateVideo(projectId: string) {
     return { error: "请先生成剧本" };
   }
 
-  const videoGenConfig = await prisma.serviceConfig.findFirst({
-    where: {
-      userId: session.user.id,
-      type: "VIDEO_GENERATION",
-      isActive: true,
-    },
-  });
-
-  if (!videoGenConfig) {
-    return {
-      error: "未配置视频生成服务，请前往设置页面配置 Runway、Luma 或 Pika",
-    };
-  }
-
-  const storageConfig = await prisma.serviceConfig.findFirst({
-    where: {
-      userId: session.user.id,
-      type: "STORAGE",
-      isActive: true,
-    },
-  });
-
-  if (!storageConfig) {
-    return {
-      error: "未配置存储服务，请前往设置页面配置 MinIO 或 S3",
-    };
-  }
-
-  const scenes = project.script.content as Array<{
-    sceneNumber: number;
-    description: string;
-    action: string;
-    cameraType: string;
-    duration: number;
-    dialogue?: string;
-  }>;
-
+  const scenes = project.script.content as ScriptScene[];
   const characters = project.characters.map((pc) => ({
     name: pc.character.name,
     photoUrl: pc.character.photoUrl,
@@ -92,27 +59,16 @@ export async function generateVideo(projectId: string) {
     data: { status: "GENERATING" },
   });
 
-  await queue.add("video:generate", {
+  await enqueueTask({
+    taskType: "video:generate",
     projectId,
-    videoId: video.id,
     userId: session.user.id,
     data: {
+      videoId: video.id,
       scenes,
       characters,
-      videoGenConfig: {
-        provider: videoGenConfig.provider,
-        apiKey: videoGenConfig.apiKey,
-        baseUrl: videoGenConfig.baseUrl,
-        model: videoGenConfig.model,
-        config: videoGenConfig.config,
-      },
-      storageConfig: {
-        endpoint: storageConfig.endpoint,
-        bucket: storageConfig.bucket,
-        region: storageConfig.region,
-        accessKey: storageConfig.accessKey,
-        secretKey: storageConfig.secretKey,
-      },
+      videoGenConfig: getVideoGenConfigFromEnv(),
+      storageConfig: getStorageConfigFromEnv(),
     },
   });
 
@@ -141,5 +97,25 @@ export async function getVideoProgress(videoId: string) {
     progress: video.progress,
     videoUrl: video.videoUrl,
     errorMessage: video.errorMessage,
+  };
+}
+
+function getVideoGenConfigFromEnv() {
+  return {
+    provider: process.env.VIDEO_PROVIDER || "mock",
+    apiKey: process.env.VIDEO_API_KEY || "",
+    baseUrl: process.env.VIDEO_BASE_URL || "",
+    model: process.env.VIDEO_MODEL || "",
+    config: {},
+  };
+}
+
+function getStorageConfigFromEnv() {
+  return {
+    endpoint: process.env.S3_ENDPOINT || "",
+    bucket: process.env.S3_BUCKET || "",
+    region: process.env.S3_REGION || "us-east-1",
+    accessKey: process.env.S3_ACCESS_KEY || "",
+    secretKey: process.env.S3_SECRET_KEY || "",
   };
 }

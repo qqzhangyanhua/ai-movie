@@ -5,7 +5,7 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 let cachedClient: S3Client | null = null;
 let cachedBucket: string | null = null;
@@ -21,37 +21,32 @@ async function getStorageClient(
     return { client: cachedClient, bucket: cachedBucket };
   }
 
-  const config = await prisma.serviceConfig.findFirst({
-    where: {
-      userId,
-      type: "STORAGE",
-      isActive: true,
-    },
-  });
+  // ServiceConfig 已废弃，使用环境变量
+  const endpoint = process.env.S3_ENDPOINT;
+  const bucket = process.env.S3_BUCKET;
+  const accessKey = process.env.S3_ACCESS_KEY;
+  const secretKey = process.env.S3_SECRET_KEY;
+  const region = process.env.S3_REGION || "us-east-1";
 
-  if (!config) {
-    throw new Error("未配置存储服务，请前往设置页面配置 MinIO 或 S3");
-  }
-
-  if (!config.endpoint || !config.bucket || !config.accessKey || !config.secretKey) {
-    throw new Error("存储服务配置不完整");
+  if (!endpoint || !bucket || !accessKey || !secretKey) {
+    throw new Error("未配置存储服务环境变量 (S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY)");
   }
 
   const client = new S3Client({
-    region: config.region ?? "us-east-1",
-    endpoint: config.endpoint,
+    region,
+    endpoint,
     credentials: {
-      accessKeyId: config.accessKey,
-      secretAccessKey: config.secretKey,
+      accessKeyId: accessKey,
+      secretAccessKey: secretKey,
     },
     forcePathStyle: true,
   });
 
   cachedClient = client;
-  cachedBucket = config.bucket;
+  cachedBucket = bucket;
   cacheTime = now;
 
-  return { client, bucket: config.bucket };
+  return { client, bucket };
 }
 
 export async function getUploadUrl(

@@ -1,9 +1,11 @@
 export type TaskType =
+  | "quick-create"
   | "character:generate"
   | "script:generate"
   | "storyboard:generate"
   | "storyboard:preview"
   | "video:clip"
+  | "video:generate"
   | "voice:generate"
   | "music:generate"
   | "poster:generate"
@@ -13,6 +15,7 @@ export interface TaskPayload {
   taskType: TaskType;
   projectId: string;
   userId: string;
+  videoId?: string;
   data: Record<string, unknown>;
 }
 

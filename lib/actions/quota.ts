@@ -138,6 +138,35 @@ export async function deductVideoQuota(userId: string): Promise<QuotaResult> {
   });
 }
 
+export async function refundVideoQuota(userId: string): Promise<QuotaResult> {
+  return prisma.$transaction(async (tx) => {
+    const user = await ensureMonthlyQuota(tx, userId);
+    if (!user) return { success: false, error: "用户不存在" };
+
+    if (user.videosUsed <= 0) {
+      return { success: true };
+    }
+
+    if (isUnlimitedPlan(user.plan)) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { videosUsed: { decrement: 1 } },
+      });
+      return { success: true };
+    }
+
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        videosRemaining: { increment: 1 },
+        videosUsed: { decrement: 1 },
+      },
+    });
+
+    return { success: true };
+  });
+}
+
 export async function checkStorageQuota(
   userId: string,
   sizeInMB: number
