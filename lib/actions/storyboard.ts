@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import type { ScriptScene } from "@/lib/data/script-templates";
+import { prisma } from "@/lib/prisma";
 
 export async function generateStoryboardsFromScript(projectId: string) {
   const session = await requireAuth();
@@ -20,24 +20,24 @@ export async function generateStoryboardsFromScript(projectId: string) {
     return { error: "剧本内容为空" };
   }
 
-  // Delete existing storyboards (cascade will delete VideoClips)
   await prisma.storyboard.deleteMany({
     where: { projectId },
   });
 
-  for (let i = 0; i < content.length; i++) {
-    const scene = content[i];
+  for (let index = 0; index < content.length; index++) {
+    const scene = content[index];
     const storyboard = await prisma.storyboard.create({
       data: {
         projectId,
-        sceneNumber: scene.sceneNumber ?? i + 1,
+        sceneNumber: scene.sceneNumber ?? index + 1,
         description: scene.description ?? "",
-        characters: [],
+        characters: scene.characters ?? [],
         action: scene.action ?? null,
         cameraType: scene.cameraType ?? null,
         duration: scene.duration ?? 5,
       },
     });
+
     await prisma.videoClip.create({
       data: { storyboardId: storyboard.id },
     });

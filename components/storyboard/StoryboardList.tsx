@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RotateCcw, Clock } from "lucide-react";
+import { Clock, Plus, RotateCcw, TriangleAlert, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StoryboardCard } from "./StoryboardCard";
 import { StoryboardEditor } from "./StoryboardEditor";
 import {
-  generateStoryboardsFromScript,
-  deleteStoryboard,
   addStoryboard,
+  deleteStoryboard,
+  generateStoryboardsFromScript,
   reorderStoryboards,
 } from "@/lib/actions/storyboard";
 import type { Storyboard } from "@prisma/client";
+import {
+  getStoryboardRoleIssue,
+  summarizeStoryboardRoleIssues,
+} from "./storyboard-role-utils";
 
 interface ProjectCharacter {
   id: string;
@@ -39,7 +44,11 @@ export function StoryboardList({
   const [adding, setAdding] = useState(false);
   const [reordering, setReordering] = useState(false);
 
-  const totalDuration = storyboards.reduce((sum, s) => sum + s.duration, 0);
+  const totalDuration = storyboards.reduce((sum, storyboard) => sum + storyboard.duration, 0);
+  const hasProjectCharacters = projectCharacters.length > 0;
+  const roleSummary = hasProjectCharacters
+    ? summarizeStoryboardRoleIssues(storyboards, projectCharacters)
+    : null;
 
   async function handleRegenerate() {
     setRegenerating(true);
@@ -78,7 +87,7 @@ export function StoryboardList({
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     await reorderStoryboards(
       projectId,
-      newOrder.map((s) => s.id)
+      newOrder.map((storyboard) => storyboard.id)
     );
     setReordering(false);
     router.refresh();
@@ -91,7 +100,7 @@ export function StoryboardList({
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     await reorderStoryboards(
       projectId,
-      newOrder.map((s) => s.id)
+      newOrder.map((storyboard) => storyboard.id)
     );
     setReordering(false);
     router.refresh();
@@ -124,15 +133,62 @@ export function StoryboardList({
         </div>
       </div>
 
+      {!hasProjectCharacters && (
+        <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex items-start gap-2">
+            <Users className="mt-0.5 size-4 shrink-0" />
+            <p>当前项目还没有可用角色，分镜阶段暂时无法校验出场角色。</p>
+          </div>
+        </div>
+      )}
+
+      {hasProjectCharacters &&
+        roleSummary &&
+        roleSummary.issueSceneNumbers.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex items-start gap-3">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              <div className="space-y-2">
+                <p>
+                  发现 {roleSummary.issueSceneNumbers.length} 个分镜的角色分配需要处理。
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {roleSummary.missingStoryboardCount > 0 && (
+                    <Badge className="bg-amber-600 text-white">
+                      未分配角色 {roleSummary.missingStoryboardCount} 个
+                    </Badge>
+                  )}
+                  {roleSummary.unknownStoryboardCount > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-destructive/40 bg-background text-destructive"
+                    >
+                      项目外角色 {roleSummary.unknownStoryboardCount} 个
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="bg-background">
+                    场景 {roleSummary.issueSceneNumbers.join("、")}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       <div className="flex flex-col gap-4">
-        {storyboards.map((sb, index) => (
+        {storyboards.map((storyboard, index) => (
           <StoryboardCard
-            key={sb.id}
-            storyboard={sb}
+            key={storyboard.id}
+            storyboard={storyboard}
+            roleIssue={
+              hasProjectCharacters
+                ? getStoryboardRoleIssue(storyboard, projectCharacters)
+                : undefined
+            }
             canMoveUp={index > 0}
             canMoveDown={index < storyboards.length - 1}
-            onEdit={() => handleEdit(sb)}
-            onDelete={() => handleDelete(sb)}
+            onEdit={() => handleEdit(storyboard)}
+            onDelete={() => handleDelete(storyboard)}
             onMoveUp={() => handleMoveUp(index)}
             onMoveDown={() => handleMoveDown(index)}
           />
@@ -145,7 +201,9 @@ export function StoryboardList({
         open={editorOpen}
         onOpenChange={(open) => {
           setEditorOpen(open);
-          if (!open) setEditingStoryboard(null);
+          if (!open) {
+            setEditingStoryboard(null);
+          }
         }}
       />
     </div>

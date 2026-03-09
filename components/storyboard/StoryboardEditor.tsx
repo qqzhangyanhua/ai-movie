@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { updateStoryboard } from "@/lib/actions/storyboard";
 import type { Storyboard } from "@prisma/client";
+import { getStoryboardRoleIssue } from "./storyboard-role-utils";
 
 const CAMERA_OPTIONS = ["远景", "中景", "特写"] as const;
 
@@ -61,6 +64,20 @@ export function StoryboardEditor({
     }
   }, [storyboard]);
 
+  const roleIssue = useMemo(() => {
+    if (!storyboard) {
+      return undefined;
+    }
+
+    return getStoryboardRoleIssue(
+      {
+        sceneNumber: storyboard.sceneNumber,
+        characters,
+      } as Pick<Storyboard, "sceneNumber" | "characters">,
+      projectCharacters
+    );
+  }, [characters, projectCharacters, storyboard]);
+
   async function handleSave() {
     if (!storyboard) return;
     setSaving(true);
@@ -77,10 +94,16 @@ export function StoryboardEditor({
   }
 
   function toggleCharacter(name: string) {
-    setCharacters((prev) =>
-      prev.includes(name)
-        ? prev.filter((c) => c !== name)
-        : [...prev, name]
+    setCharacters((previousCharacters) =>
+      previousCharacters.includes(name)
+        ? previousCharacters.filter((item) => item !== name)
+        : [...previousCharacters, name]
+    );
+  }
+
+  function removeCharacter(name: string) {
+    setCharacters((previousCharacters) =>
+      previousCharacters.filter((item) => item !== name)
     );
   }
 
@@ -94,21 +117,66 @@ export function StoryboardEditor({
         </DialogHeader>
         <div className="space-y-6 py-4">
           {storyboard.imageUrl && (
-            <div className="rounded-lg overflow-hidden bg-muted">
+            <div className="overflow-hidden rounded-lg bg-muted">
               <img
                 src={storyboard.imageUrl}
                 alt={`场景 ${storyboard.sceneNumber} 预览`}
-                className="w-full h-32 object-cover"
+                className="h-32 w-full object-cover"
               />
             </div>
           )}
+
+          {roleIssue &&
+            (roleIssue.missingCharacters ||
+              roleIssue.unknownCharacters.length > 0) && (
+              <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                <div className="flex items-start gap-2">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {roleIssue.missingCharacters && (
+                        <Badge className="bg-amber-600 text-white">
+                          未选择出场角色
+                        </Badge>
+                      )}
+                      {roleIssue.unknownCharacters.map((name) => (
+                        <Badge
+                          key={name}
+                          variant="outline"
+                          className="border-destructive/40 bg-background text-destructive"
+                        >
+                          项目外角色：{name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {roleIssue.unknownCharacters.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {roleIssue.unknownCharacters.map((name) => (
+                          <Button
+                            key={name}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-destructive/40 text-destructive hover:text-destructive"
+                            onClick={() => removeCharacter(name)}
+                          >
+                            移除 {name}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="sb-desc">场景描述</Label>
               <Textarea
                 id="sb-desc"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(event) => setDescription(event.target.value)}
                 placeholder="描述该场景的画面内容"
                 className="min-h-[80px]"
               />
@@ -118,12 +186,13 @@ export function StoryboardEditor({
               <Textarea
                 id="sb-action"
                 value={action}
-                onChange={(e) => setAction(e.target.value)}
+                onChange={(event) => setAction(event.target.value)}
                 placeholder="描述角色动作"
                 className="min-h-[60px]"
               />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>镜头类型</Label>
@@ -132,9 +201,9 @@ export function StoryboardEditor({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CAMERA_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
+                  {CAMERA_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -148,25 +217,26 @@ export function StoryboardEditor({
                 min={1}
                 max={30}
                 value={duration}
-                onChange={(e) =>
-                  setDuration(parseInt(e.target.value, 10) || 5)
+                onChange={(event) =>
+                  setDuration(parseInt(event.target.value, 10) || 5)
                 }
               />
             </div>
           </div>
+
           {projectCharacters.length > 0 && (
             <div className="space-y-2">
               <Label>出场角色</Label>
               <div className="flex flex-wrap gap-2">
-                {projectCharacters.map((char) => (
+                {projectCharacters.map((character) => (
                   <Button
-                    key={char.id}
+                    key={character.id}
                     type="button"
-                    variant={characters.includes(char.name) ? "default" : "outline"}
+                    variant={characters.includes(character.name) ? "default" : "outline"}
                     size="sm"
-                    onClick={() => toggleCharacter(char.name)}
+                    onClick={() => toggleCharacter(character.name)}
                   >
-                    {char.name}
+                    {character.name}
                   </Button>
                 ))}
               </div>
