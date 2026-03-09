@@ -34,6 +34,13 @@ enum TaskStatus {
   FAILED
 }
 
+enum ServiceType {
+  LLM
+  VIDEO_GENERATION
+  STORAGE
+  TTS
+}
+
 model User {
   id              String   @id @default(cuid())
   email           String   @unique
@@ -94,11 +101,12 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  characters ProjectCharacter[]
-  scenes     Scene[]
-  script     Script?
-  videos     Video[]
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characters  ProjectCharacter[]
+  scenes      Scene[]
+  script      Script?
+  videos      Video[]
+  storyboards Storyboard[]
 }
 
 model Character {
@@ -175,5 +183,34 @@ model Video {
   createdAt    DateTime   @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Storyboard {
+  id          String     @id @default(cuid())
+  projectId   String
+  sceneNumber Int
+  description String
+  characters  String[]
+  action      String?
+  cameraType  String?
+  duration    Int        @default(5)
+  imageUrl    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  videoClip VideoClip?
+}
+
+model VideoClip {
+  id           String     @id @default(cuid())
+  storyboardId String     @unique
+  videoUrl     String?
+  status       TaskStatus @default(PENDING)
+  progress     Int        @default(0)
+  errorMessage String?
+  createdAt    DateTime   @default(now())
+
+  storyboard Storyboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
 }
 
