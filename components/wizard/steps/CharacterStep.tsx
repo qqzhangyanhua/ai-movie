@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, TriangleAlert } from "lucide-react";
+import { ChevronRight, TriangleAlert, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { CharacterPicker } from "@/components/character/CharacterPicker";
 import {
   buildCharacterRemovalImpactMap,
@@ -34,6 +40,7 @@ export function CharacterStep({
   onNext,
 }: CharacterStepProps) {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const removalImpacts = useMemo(
     () =>
@@ -47,18 +54,33 @@ export function CharacterStep({
   );
 
   const impactedCharacters = Object.values(removalImpacts);
+  const canProceed = selectedCharacterIds.length > 0;
 
   async function handleAdd(characterId: string) {
-    await addCharacterToProject(projectId, characterId);
-    router.refresh();
+    setLoading(true);
+    try {
+      await addCharacterToProject(projectId, characterId);
+      router.refresh();
+    } catch {
+      toast.error("添加角色失败，请重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleRemove(
     characterId: string,
     options?: { cleanupReferences?: boolean }
   ) {
-    await removeCharacterFromProject(projectId, characterId, options);
-    router.refresh();
+    setLoading(true);
+    try {
+      await removeCharacterFromProject(projectId, characterId, options);
+      router.refresh();
+    } catch {
+      toast.error("移除角色失败，请重试");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleNext() {
@@ -72,7 +94,7 @@ export function CharacterStep({
   return (
     <div className="space-y-6">
       {impactedCharacters.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <div className="flex items-start gap-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <div className="space-y-2">
@@ -95,6 +117,13 @@ export function CharacterStep({
         </div>
       )}
 
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>处理中...</span>
+        </div>
+      )}
+
       <CharacterPicker
         allCharacters={allCharacters}
         selectedIds={selectedCharacterIds}
@@ -103,10 +132,19 @@ export function CharacterStep({
         onRemoveFromProject={handleRemove}
       />
       <div className="flex justify-end">
-        <Button onClick={handleNext} disabled={selectedCharacterIds.length === 0}>
-          下一步：选择剧本
-          <ChevronRight className="ml-2 size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={canProceed ? undefined : 0}>
+              <Button onClick={handleNext} disabled={!canProceed}>
+                下一步：选择剧本
+                <ChevronRight className="ml-2 size-4" />
+              </Button>
+            </span>
+          </TooltipTrigger>
+          {!canProceed && (
+            <TooltipContent>请至少选择一个角色</TooltipContent>
+          )}
+        </Tooltip>
       </div>
     </div>
   );

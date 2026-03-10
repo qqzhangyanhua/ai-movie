@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, RefreshCw, Home } from "lucide-react";
+import { Download, RefreshCw, Home, PartyPopper } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/lib/button-variants";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
@@ -66,35 +67,71 @@ export function ResultStep({
 
   return (
     <div className="space-y-6">
-      <VideoPlayer videoUrl={videoUrl} posterUrl={posterUrl} />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 px-5 py-4 dark:border-green-800 dark:from-green-950/30 dark:to-emerald-950/30"
+      >
+        <div className="flex items-center gap-3">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
+            <PartyPopper className="size-6 text-green-600 dark:text-green-400" />
+          </motion.div>
+          <div>
+            <h3 className="font-semibold text-green-900 dark:text-green-200">
+              视频制作完成
+            </h3>
+            <p className="text-sm text-green-700 dark:text-green-300">
+              你的视频已成功生成，可以预览、下载或分享。
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+      >
+        <VideoPlayer videoUrl={videoUrl} posterUrl={posterUrl} />
+      </motion.div>
 
       {videoId && (
         <SubtitleToggle videoId={videoId} subtitleUrl={subtitleUrl} />
       )}
 
       <div className="rounded-lg border p-4">
-        <h3 className="mb-2 font-semibold">{projectTitle}</h3>
-        <dl className="grid gap-2 text-sm text-muted-foreground">
+        <h3 className="mb-3 font-semibold">{projectTitle}</h3>
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
           {duration != null && (
-            <div className="flex gap-2">
-              <dt>时长：</dt>
-              <dd>{formatDuration(duration)}</dd>
+            <div>
+              <dt className="text-muted-foreground">时长</dt>
+              <dd className="font-medium">{formatDuration(duration)}</dd>
             </div>
           )}
           {resolution && (
-            <div className="flex gap-2">
-              <dt>分辨率：</dt>
-              <dd>{resolution}</dd>
+            <div>
+              <dt className="text-muted-foreground">分辨率</dt>
+              <dd className="font-medium">{resolution}</dd>
             </div>
           )}
-          <div className="flex gap-2">
-            <dt>创建时间：</dt>
-            <dd>{formatDate(createdAt)}</dd>
+          <div>
+            <dt className="text-muted-foreground">创建时间</dt>
+            <dd className="font-medium">{formatDate(createdAt)}</dd>
           </div>
         </dl>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        className="flex flex-wrap gap-3"
+      >
         <a
           href={videoUrl}
           download
@@ -105,9 +142,7 @@ export function ResultStep({
           <Download className="mr-2 size-4" />
           下载视频
         </a>
-        {videoId && (
-          <ShareDialog videoId={videoId} />
-        )}
+        {videoId && <ShareDialog videoId={videoId} />}
         <Button
           variant="outline"
           onClick={() => router.push(`/create/${projectId}?step=generate`)}
@@ -122,7 +157,7 @@ export function ResultStep({
           <Home className="mr-2 size-4" />
           返回首页
         </Link>
-      </div>
+      </motion.div>
     </div>
   );
 }

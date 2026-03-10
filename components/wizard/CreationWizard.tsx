@@ -1,29 +1,14 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { StepIndicator, type StepKey } from "./StepIndicator";
-
-const VALID_STEPS: StepKey[] = [
-  "characters",
-  "script",
-  "storyboard",
-  "generate",
-  "result",
-];
-
-function parseStep(stepParam: string | null): StepKey {
-  if (stepParam && VALID_STEPS.includes(stepParam as StepKey)) {
-    return stepParam as StepKey;
-  }
-  return "characters";
-}
+import { StepIndicator } from "./StepIndicator";
+import { parseStep, type StepKey } from "@/lib/wizard-steps";
 
 type CreationWizardProps = {
   projectId: string;
   initialStep: StepKey;
-  children: Record<StepKey, React.ReactNode>;
+  children: React.ReactNode;
   completedSteps?: Set<StepKey>;
 };
 
@@ -46,8 +31,6 @@ export function CreationWizard({
     router.push(`/create/${projectId}?step=${step}`);
   }
 
-  const stepContent = children[currentStep] ?? children.characters;
-
   return (
     <div className="space-y-8">
       <StepIndicator
@@ -55,7 +38,7 @@ export function CreationWizard({
         onStepClick={goToStep}
         completedSteps={completedSteps}
       />
-      <div className="min-h-[200px]">{stepContent}</div>
+      <div className="min-h-[200px]">{children}</div>
     </div>
   );
 }
