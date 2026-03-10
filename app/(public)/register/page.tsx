@@ -10,6 +10,38 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
+// Google Icon
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" {...props}>
+    <path
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      fill="#4285F4"
+    />
+    <path
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      fill="#34A853"
+    />
+    <path
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z"
+      fill="#FBBC05"
+    />
+    <path
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      fill="#EA4335"
+    />
+  </svg>
+)
+
+// Microsoft Icon
+const MicrosoftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 23 23" {...props}>
+    <path fill="#f35325" d="M1 1h10v10H1z"/>
+    <path fill="#81bc06" d="M12 1h10v10H12z"/>
+    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+    <path fill="#ffba08" d="M12 12h10v10H12z"/>
+  </svg>
+)
+
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -58,55 +90,49 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-[#050505] relative overflow-hidden">
-      {/* Subtle Dot Pattern Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(#ffffff30_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none opacity-80" />
-
-      {/* Framing Lines (Wireframe aesthetic) */}
-      <div className="absolute top-10 md:top-24 left-0 right-0 h-px bg-white/[0.12] pointer-events-none" />
-      <div className="absolute bottom-10 md:bottom-24 left-0 right-0 h-px bg-white/[0.12] pointer-events-none" />
-      <div className="absolute left-10 md:left-24 top-0 bottom-0 w-px bg-white/[0.12] pointer-events-none" />
-      <div className="absolute right-10 md:right-24 top-0 bottom-0 w-px bg-white/[0.12] pointer-events-none" />
-
-      {/* Intersection Pluses/Diamonds */}
-      <div className="absolute top-10 md:top-24 left-10 md:left-24 -translate-x-1/2 -translate-y-1/2 size-2 bg-[#050505] border border-white/30 pointer-events-none z-10" />
-      <div className="absolute top-10 md:top-24 right-10 md:right-24 translate-x-1/2 -translate-y-1/2 size-2 bg-[#050505] border border-white/30 pointer-events-none z-10" />
-      <div className="absolute bottom-10 md:bottom-24 left-10 md:left-24 -translate-x-1/2 translate-y-1/2 size-2 bg-[#050505] border border-white/30 pointer-events-none z-10" />
-      <div className="absolute bottom-10 md:bottom-24 right-10 md:right-24 translate-x-1/2 translate-y-1/2 size-2 bg-[#050505] border border-white/30 pointer-events-none z-10" />
-
-      {/* Central Solid Box */}
-      <div className="absolute top-10 bottom-10 left-10 right-10 md:top-24 md:bottom-24 md:left-24 md:right-24 bg-[#111111] rounded-[2rem] md:rounded-[4rem] border border-white/[0.08] shadow-2xl pointer-events-none z-0" />
+      {/* Grid Pattern Background */}
+      <div className="absolute inset-0 bg-[#050505] z-0">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_50%,#ffffff08,transparent)]" />
+      </div>
+      
+      {/* Glow Effect */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] rounded-full blur-3xl pointer-events-none z-0" />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="w-full max-w-sm z-10"
       >
-        <Card className="w-full bg-[#18181A] border-white/[0.04] shadow-2xl p-6 sm:p-8 py-10 rounded-2xl">
-          <CardHeader className="space-y-4 pb-8 p-0 text-center flex flex-col items-center">
-            <div className="size-10 bg-[#1A1A1A] rounded-xl flex items-center justify-center mb-2 border border-white/5 shadow-inner">
-              <Sparkles className="size-5 text-gray-300" />
+        <Card className="w-full bg-[#0A0A0A] border-white/10 shadow-2xl p-6 sm:p-8 rounded-xl backdrop-blur-sm">
+          <CardHeader className="space-y-4 pb-6 p-0 text-center flex flex-col items-center">
+            <div className="size-10 bg-white text-black rounded-lg flex items-center justify-center mb-2 shadow-inner">
+              <Sparkles className="size-5" />
             </div>
-            <CardTitle className="text-xl font-medium tracking-tight text-white">
-              创建账号
-            </CardTitle>
-            <CardDescription className="text-[13px] text-gray-400">
-              设置您的用户名、邮箱和密码
-            </CardDescription>
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-semibold tracking-tight text-white">
+                Create Your Account
+              </CardTitle>
+              <CardDescription className="text-sm text-gray-400">
+                Sign Up to continue to AI Movie
+              </CardDescription>
+            </div>
           </CardHeader>
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4 p-0">
               {error && (
                 <div
                   className={cn(
-                    "rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-400 text-center mb-4"
+                    "rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400 text-center mb-4"
                   )}
                 >
                   {error}
                 </div>
               )}
               <div className="space-y-3">
-                <div className="space-y-1 block">
+                <div className="space-y-1">
                   <Input
                     id="username"
                     name="username"
@@ -116,29 +142,29 @@ export default function RegisterPage() {
                     required
                     disabled={isLoading}
                     aria-invalid={!!fieldErrors.username}
-                    className="bg-[#222222] border-transparent text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-white/20 h-11 rounded-lg text-[14px]"
+                    className="bg-[#161616] border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-gray-600 focus-visible:border-gray-600 h-11 rounded-lg text-sm transition-all"
                   />
                   {fieldErrors.username?.[0] && (
                     <p className="text-xs text-red-400 px-1">{fieldErrors.username[0]}</p>
                   )}
                 </div>
-                <div className="space-y-1 block">
+                <div className="space-y-1">
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="name@example.com"
+                    placeholder="Business email"
                     autoComplete="email"
                     required
                     disabled={isLoading}
                     aria-invalid={!!fieldErrors.email}
-                    className="bg-[#222222] border-transparent text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-white/20 h-11 rounded-lg text-[14px]"
+                    className="bg-[#161616] border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-gray-600 focus-visible:border-gray-600 h-11 rounded-lg text-sm transition-all"
                   />
                   {fieldErrors.email?.[0] && (
                     <p className="text-xs text-red-400 px-1">{fieldErrors.email[0]}</p>
                   )}
                 </div>
-                <div className="space-y-1 block">
+                <div className="space-y-1">
                   <Input
                     id="password"
                     name="password"
@@ -148,24 +174,55 @@ export default function RegisterPage() {
                     required
                     disabled={isLoading}
                     aria-invalid={!!fieldErrors.password}
-                    className="bg-[#222222] border-transparent text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-white/20 h-11 rounded-lg text-[14px]"
+                    className="bg-[#161616] border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-gray-600 focus-visible:border-gray-600 h-11 rounded-lg text-sm transition-all"
                   />
                   {fieldErrors.password?.[0] && (
                     <p className="text-xs text-red-400 px-1">{fieldErrors.password[0]}</p>
                   )}
                 </div>
               </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4 p-0 pt-6">
+
               <Button
                 type="submit"
-                className="w-full h-11 bg-[#404040] hover:bg-[#4A4A4A] text-[#E0E0E0] rounded-full font-medium transition-colors text-[14px]"
+                className="w-full h-11 mt-4 bg-[#333333] hover:bg-[#404040] text-white rounded-lg font-medium transition-colors text-sm border border-white/5"
                 disabled={isLoading}
               >
-                {isLoading ? "注册中..." : "Create Account"}
+                {isLoading ? "Creating account..." : "Continue"}
               </Button>
-              <Link href="/login" className="text-center text-[13px] text-gray-400 hover:text-white transition-colors mt-2">
-                Go back to login
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-white/10" />
+                </div>
+                <div className="relative flex justify-center text-[11px] uppercase">
+                  <span className="bg-[#0A0A0A] px-2 text-gray-500">Or</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 bg-[#161616] hover:bg-[#1F1F1F] border-white/10 text-gray-300 hover:text-white rounded-lg font-medium transition-colors text-sm flex items-center justify-center gap-2"
+                  onClick={() => {}}
+                >
+                  <GoogleIcon className="w-4 h-4" />
+                  Continue with Google
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 bg-[#161616] hover:bg-[#1F1F1F] border-white/10 text-gray-300 hover:text-white rounded-lg font-medium transition-colors text-sm flex items-center justify-center gap-2"
+                  onClick={() => {}}
+                >
+                  <MicrosoftIcon className="w-4 h-4" />
+                  Continue with Microsoft
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4 p-0 pt-6">
+              <Link href="/login" className="text-center text-xs text-gray-500 hover:text-white transition-colors">
+                Already have an account? <span className="text-white hover:underline">Log in</span>
               </Link>
             </CardFooter>
           </form>
