@@ -10,9 +10,11 @@ function createPrismaClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
-  // Prisma pg adapter expects postgresql:// (not postgresql+asyncpg://)
   const pgUrl = connectionString.replace("postgresql+asyncpg://", "postgresql://");
-  const adapter = new PrismaPg({ connectionString: pgUrl });
+  const url = new URL(pgUrl);
+  const schema = url.searchParams.get("schema") ?? "public";
+  url.searchParams.delete("schema");
+  const adapter = new PrismaPg({ connectionString: url.toString() }, { schema });
   return new PrismaClient({ adapter });
 }
 
